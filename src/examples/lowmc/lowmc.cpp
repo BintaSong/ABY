@@ -20,6 +20,11 @@
 #include <ENCRYPTO_utils/parse_options.h>
 #include <ENCRYPTO_utils/crypto/crypto.h>
 #include "../../abycore/aby/abyparty.h"
+#include "../../abycore/sharing/sharing.h"
+
+#include <iomanip>
+#include <bitset>
+
 
 int32_t read_test_options(int32_t* argcp, char*** argvp, e_role* role, uint32_t* nvals, uint32_t* secparam, std::string* address, uint16_t* port, uint32_t* statesize, uint32_t* keysize,
 		uint32_t* sboxes, uint32_t* rounds, uint32_t* maxnumgates) {
@@ -55,7 +60,7 @@ int32_t read_test_options(int32_t* argcp, char*** argvp, e_role* role, uint32_t*
 
 int main(int argc, char** argv) {
 	e_role role;
-	uint32_t bitlen = 32, nvals = 65, secparam = 128, nthreads = 1, statesize, sboxes, rounds, keysize, maxnumgates=0;
+	uint32_t bitlen = 32, nvals = 1, secparam = 128, nthreads = 1, statesize, sboxes, rounds, keysize, maxnumgates=0;
 	uint16_t port = 7766;
 	std::string address = "127.0.0.1";
 	int32_t test_op = -1;
@@ -64,8 +69,52 @@ int main(int argc, char** argv) {
 	read_test_options(&argc, &argv, &role, &nvals, &secparam, &address, &port, &statesize, &keysize, &sboxes, &rounds, &maxnumgates);
 
 	crypto* crypt = new crypto(secparam, (uint8_t*) const_seed);
-
 	test_lowmc_circuit(role, address, port, nvals, nthreads, mt_alg, S_BOOL, statesize, keysize, sboxes, rounds, maxnumgates, crypt);
+	
+	// uint64_t test = 0x0102;
+    // char str[33] = {};
+    // memcpy(str, &test, 8);
+    
+    // for (int i = 0; i < 8; i++) {
+    //     std::cout<< (int)str[i] <<std::endl;
+    // }
+
+
+	// FIXME: lowmc test over shared input and output
+	// LowMCParams param = {sboxes, keysize, statesize, keysize == 80 ? 64 : (uint32_t) 128, rounds};
+
+	// ABYParty* party;
+	// if(maxnumgates > 0)
+	// 	party = new ABYParty(role, address, port, crypt->get_seclvl(), bitlen, nthreads, mt_alg, maxnumgates);
+	// else
+	// 	party = new ABYParty(role, address, port, crypt->get_seclvl(), bitlen, nthreads, mt_alg);
+
+	// std::vector<Sharing*>& sharings = party->GetSharings();
+	// Circuit* circ = sharings[S_BOOL]->GetCircuitBuildRoutine();
+	
+	// assert(circ->GetCircuitType() == C_BOOLEAN);
+
+	// BYTE test_input[param.blocksize * nvals] = {0x2, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
+	//                                     0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+	// BYTE test_mask[param.blocksize * nvals] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
+	//                                    0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+	
+
+	// // uint256_t inputShare, input_mask = 123;
+	// BYTE outputShare[(uint64_t) ceil_divide(param.blocksize, 8) * nvals];
+
+	// if (role == CLIENT) {
+	// 	lowmc_circuit_shared_input(role, nvals, crypt, S_BOOL, party, sharings, circ, &param, test_input, outputShare, SERVER);
+	// }
+	// else {
+	// 	lowmc_circuit_shared_input(role, nvals, crypt, S_BOOL, party, sharings, circ, &param, test_mask, outputShare, SERVER);
+	// }
+
+
+	// for (int j = 0; j < ceil_divide(param.blocksize, 8) * nvals; j++) {
+	// 	std::cout << std::bitset<8>(outputShare[j]);
+	// }
+	// std::cout<<std::endl;
 
 	return 0;
 }

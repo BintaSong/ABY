@@ -23,6 +23,14 @@
 #include <ENCRYPTO_utils/cbitvector.h>
 #include <ENCRYPTO_utils/typedefs.h>
 #include <cassert>
+#include <fstream>
+#include <sys/stat.h>
+#include <cstdint>
+#include <sstream>
+#include <iomanip>
+//#include "LowMC.h"
+
+#define LOWMC_DEBUG 0
 
 static const BYTE mpccseed[16] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF };
 
@@ -51,17 +59,33 @@ static const LowMCParams ltp = { 63, 128, 256, 128, 14 };
 static const LowMCParams lowmcparamlookup[] = { stp, ltp};
 
 static CBitVector m_vRandomBits;
+//static CBitVector extend_key;
+
+static BYTE ltp_client_key[] = {0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+static BYTE ltp_server_key[] = {0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+
+
+
+// TODO: 
+void load_lowmc_state(const LowMCParams* param);
+void keyschedule(CBitVector& lowmc_raw_key, CBitVector & extend_key, const LowMCParams* param);
+void print_matrices(const LowMCParams* param);
+
+void lowmc_circuit_shared_input(e_role role, uint32_t nvals, crypto* crypt, e_sharing sharing,
+                 ABYParty *party, std::vector<Sharing *> &sharings, Circuit *circ, LowMCParams* para,
+                 BYTE* inputShared, BYTE* outShared, e_role key_inputter);
 
 int32_t test_lowmc_circuit(e_role role, const std::string& address, uint16_t port, uint32_t nvals, uint32_t nthreads, e_mt_gen_alg mt_alg, e_sharing sharing, uint32_t statesize, uint32_t keysize,
 		uint32_t sboxes, uint32_t rounds, uint32_t maxnumgates, crypto* crypt);
 int32_t test_lowmc_circuit(e_role role, const std::string& address, uint16_t port, uint32_t nvals, uint32_t nthreads, e_mt_gen_alg mt_alg, e_sharing sharing, LowMCParams* param, uint32_t reservegates,
 		crypto* crypt);
-share* BuildLowMCCircuit(share* val, share* key, BooleanCircuit* circ, LowMCParams* param, uint32_t zerogate, crypto* crypt);
+
+share* BuildLowMCCircuit(e_role role, share* val, share* key, BooleanCircuit* circ, LowMCParams* param, uint32_t zerogate, crypto* crypt);
 void LowMCAddRoundKey(std::vector<uint32_t>& val, std::vector<uint32_t> key, uint32_t locmcstatesize, uint32_t round, BooleanCircuit* circ);
-void LowMCMultiplyState(std::vector<uint32_t>& state, uint32_t lowmcstatesize, BooleanCircuit* circ);
-void LowMCXORConstants(std::vector<uint32_t>& state, uint32_t lowmcstatesize, BooleanCircuit* circ);
+void LowMCMultiplyState(std::vector<uint32_t>& state, uint32_t lowmcstatesize, uint32_t round, BooleanCircuit* circ);
+void LowMCXORConstants(std::vector<uint32_t>& state, uint32_t lowmcstatesize, uint32_t round, BooleanCircuit* circ);
 void LowMCXORMultipliedKey(std::vector<uint32_t>& state, std::vector<uint32_t> key, uint32_t lowmcstatesize, uint32_t round, BooleanCircuit* circ);
-void LowMCPutSBoxLayer(std::vector<uint32_t>& input, uint32_t numsboxes, BooleanCircuit* circ);
+void LowMCPutSBoxLayer(std::vector<uint32_t>& input, uint32_t numsboxes, uint32_t statesize, BooleanCircuit* circ);
 void LowMCPutSBox(uint32_t& o1, uint32_t& o2, uint32_t& o3, BooleanCircuit* circ);
 
 void LowMCMultiplyStateCallback(std::vector<uint32_t>& state, uint32_t lowmcstatesize, BooleanCircuit* circ);
@@ -74,5 +98,8 @@ void FourRussiansMatrixMult(std::vector<uint32_t>& state, uint32_t lowmcstatesiz
 
 uint32_t* BuildGrayCode(uint32_t length);
 uint32_t* BuildGrayCodeIncrement(uint32_t length);
+
+bool is_file(const std::string& path);
+
 
 #endif /* __LOWMCCIRCUIT_H_ */
