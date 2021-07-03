@@ -1,0 +1,68 @@
+# Privacy-Preserving-Decision-Tree-2021 by Jianli
+
+## Network Setup
+
+IP address is hard coded into network.h file. Default is localhost. Please change the ip address before compilation.
+
+## Prepare
+1. Clone/download the ABY repository
+2. Place the dectree folder from ABY_example in ABY/src/examples and add the line
+`add_subdirectory(dtree)`
+
+
+## Preprecessing of FSS
+```bash
+./configure
+make
+./fss-test
+```
+
+## Compile
+going to the directory /ABY
+```bash
+mkdir -p build
+cd build
+cmake .. -DABY_BUILD_EXE=On
+make
+```
+
+## Run
+`Two terminal`
+`./test -r 0`
+`./test -r 1`
+
+## Tips
+1.how to generate a dot file without any useless information like position when training a tree:
+```
+in python
+    >>> clf = tree.DecisionTreeClassifier()
+    >>> iris = load_iris()
+
+    >>> clf = clf.fit(iris.data, iris.target)
+    >>> tree.export_graphviz(clf, out_file = "iris.dot")
+ ```
+2.how to get a visial tree from a .dot file:
+`dot wine -T png -o wine.png`
+
+
+## Repositories
+EMP
+https://github.com/emp-toolkit
+
+ABY
+https://github.com/encryptogroup/ABY
+
+SoK: Modular and Efficient Private Decision Tree Evaluation
+https://github.com/encryptogroup/PDTE 
+
+Non-interactive and Output Expressive Private Comparison from Homomorphic Encryption
+https://github.com/fionser/PrivateDecisionTree 
+
+Towards Secure and Efficient Outsourcing of Machine Learning Classification
+https://github.com/patrickwang96/Privacy-Preserving-Decision-Tree-2019
+
+Efficient and Private Scoring of Decision Trees, Support Vector Machines and Logistic Regression Models Based on Pre-Computation
+https://bitbucket.org/uwtppml/lynx/src/master/
+
+libfss
+https://github.com/frankw2/libfss.git
