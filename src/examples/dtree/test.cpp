@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
 	cout << "Testing..." << filename[i] << endl;
 
 	//hiding the real depth of tree
-	uint32_t depthHide = 2;
+	uint32_t depthHide = 0;
 	
 	//-----------evaluation--------------
 	if(role ==  SERVER){

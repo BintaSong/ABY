@@ -20,7 +20,7 @@
 #include <iostream>
 
 int main(int argc, char** argv) {
-	LowMC cipher(1);
+	LowMC cipher(0x0304);
 	//cipher.print_matrices();
     // block m = 0b101010101111, c;
     block m = 0x0102, c;

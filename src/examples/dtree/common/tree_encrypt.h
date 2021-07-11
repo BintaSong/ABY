@@ -25,9 +25,10 @@
 #include "../../../abycore/aby/abyparty.h"
 #include "../../../abycore/sharing/yaoserversharing.h"
 
-
 void ss_real_tree(DecTree& tree);
 std::vector<node_tuple_mz> return_tree(DecTree& tree, uint64_t(&array)[5]);
+
+std::vector<node_tuple_mz> encrypt_tree(const DecTree& tree, uint64_t *root_node);
 
 //void ss_real_tree(e_role role, char* address, uint16_t port, seclvl seclvl, uint32_t nthreads, e_mt_gen_alg mt_alg, e_sharing comparesharing, uint32_t keybitlen, DecTree& tree);
 //std::vector<node_tuple_mz> return_tree(e_role role, char* address, uint16_t port, seclvl seclvl, uint32_t nthreads, e_mt_gen_alg mt_alg, e_sharing comparesharing, uint32_t keybitlen, DecTree& tree);
@@ -35,6 +36,8 @@ std::vector<node_tuple_mz> return_tree(DecTree& tree, uint64_t(&array)[5]);
 void print_vector_ss_tuple_mz(std::vector<node_tuple_mz>& tuple);
 
 void concatenate(std::vector<node_tuple_mz>& treeV, std::vector<node_tuple_mz>& encryptedTreeV);
+
+void concatenate(std::vector<node_tuple_mz>& treeV, const uint16_t block_size, std::vector<node_tuple_mz>& encryptedTreeV); 
 
 void deconcatenate(mpz_class concate_result, mpz_class& de_concate_result0, mpz_class& de_concate_result1);
 

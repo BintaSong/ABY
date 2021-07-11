@@ -94,7 +94,49 @@ std::vector<node_tuple_mz> return_tree(DecTree& tree, uint64_t(&array)[5]){
     //print_vector_ss_tuple_mz(treeV);
 
     std::vector<node_tuple_mz> encryptedTreeV;//加密后的密文
-    concatenate(treeV, encryptedTreeV);//联接后一个block为128bits,为后面aes加密做准备
+    concatenate(treeV, 128, encryptedTreeV);//联接后一个block为128bits,为后面aes加密做准备
+#ifdef DTREE_DEBUG
+    printf("************treeV**********************\n");
+    print_vector_ss_tuple_mz(treeV);
+    printf("************encryptedTreeV**********************\n");
+    print_vector_ss_tuple_mz(encryptedTreeV);
+#endif 
+    //aes encryption, different cloumn has different key
+    for(uint64_t i = 0; i < tree.num_dec_nodes + tree.num_of_leaves; i++){
+        prf_vector_aes_128_by_key(1, i, key1, encryptedTreeV);
+        prf_vector_aes_128_by_key(2, i, key2, encryptedTreeV);
+        prf_vector_aes_128_by_key(3, i, key3, encryptedTreeV);
+    }
+#ifdef DTREE_DEBUG
+    printf("************XORencryptedTreeV**********************\n");
+    print_vector_ss_tuple_mz(encryptedTreeV);
+#endif 
+    return encryptedTreeV;
+}
+
+std::vector<node_tuple_mz> encrypt_tree(const DecTree& tree, uint64_t *root_node){
+    double time_total = 0;
+    std::vector<node_tuple_mz> treeV;
+    //初始化root node
+    root_node[0] = mpz2uint64(tree.thres[0]);
+    root_node[1] = mpz2uint64(tree.left[0]);
+    root_node[2] = mpz2uint64(tree.right[0]);
+    root_node[3] = mpz2uint64(tree.map[0]);
+    root_node[4] = mpz2uint64(tree.label[0]);
+    //读出的数据进行赋值
+    for(int i = 0;  i < (tree.num_dec_nodes + tree.num_of_leaves); i++){
+        node_tuple_mz node(1,5);
+        *(node.plain.data()) = tree.thres[i];
+        *(node.plain.data() + 1) = tree.left[i];
+        *(node.plain.data() + 2) = tree.right[i];
+        *(node.plain.data() + 3) = tree.map[i];
+        *(node.plain.data() + 4) = tree.label[i];
+        treeV.push_back(node);
+    }
+    //print_vector_ss_tuple_mz(treeV);
+    // LowMC lowmc; 
+    std::vector<node_tuple_mz> encryptedTreeV;//加密后的密文
+    concatenate(treeV, 256, encryptedTreeV);//联接后一个block为256bits,为后面lowmc加密做准备
 #ifdef DTREE_DEBUG
     printf("************treeV**********************\n");
     print_vector_ss_tuple_mz(treeV);
@@ -263,6 +305,38 @@ void concatenate(std::vector<node_tuple_mz>& treeV, std::vector<node_tuple_mz>& 
     }
 }
 
+void concatenate(std::vector<node_tuple_mz>& treeV, const uint16_t block_size, std::vector<node_tuple_mz>& encryptedTreeV){
+    // FIXME: block_size must be multiple of 64
+
+    uint16_t node_elements_num = treeV.begin()->plain.size();
+    uint16_t block_elements_num = block_size / 64;
+    uint16_t node_blocks_num = (uint16_t) ((node_elements_num * 64 + block_size - 1) / block_size);
+    matrix_z blocks(1, node_blocks_num);
+    int kkkk= 0 ;
+    for(std::vector<node_tuple_mz>::iterator it = treeV.begin(); it < treeV.end(); it++){
+        mpz_class *node_ptr = it->plain.data();
+        for (uint16_t i = 0; i < node_blocks_num; i++) {
+            mpz_class block = 0;
+            for (uint16_t j = 0; j < block_elements_num && i*block_elements_num+j < node_elements_num; j++) {
+                block = (block << 64) + *(node_ptr + i*block_elements_num+j);
+                if (i*block_elements_num+j+1 == node_elements_num) block = block << 64;
+            }
+            *(blocks.data() + i) = block;
+        }
+       // printf("bye %ld\n", kkkk );
+        node_tuple_mz block_tuple(blocks, 1, node_blocks_num);
+        encryptedTreeV.push_back(block_tuple);
+        kkkk++;
+       
+    }
+}
+
+// void deconcatenate(mpz_class concate_result, mpz_class& de_concate_result0, mpz_class& de_concate_result1){
+//     mpz_class div = pow(2, 64);
+//     de_concate_result0 = concate_result%div;//余数为低位
+//     de_concate_result1 = concate_result/div;//商为高位
+// }
+
 //将128bit数分解为两个64位数。de_concate_result0为低64位，de_concate_result1为高64位
 void deconcatenate(mpz_class concate_result, mpz_class& de_concate_result0, mpz_class& de_concate_result1){
     mpz_class div = pow(2, 64);
@@ -287,31 +361,35 @@ std::vector<node_tuple_mz>& encryptedTreeV){
     p_aes128_encrypt(input, output, key);
     //printstate(output);
     //xor encryption
-    if(tag == 1){
-        int count = 0;
-        for(std::vector<node_tuple_mz>::iterator it = encryptedTreeV.begin(); it < encryptedTreeV.end(); it++, count++){
-            if(count == num){
-                aes_xor_class_plain(output, *(it->plain.data()));
-            }
-        }
-    }else if(tag == 2){
-        int count = 0;
-        for(std::vector<node_tuple_mz>::iterator it = encryptedTreeV.begin(); it < encryptedTreeV.end(); it++, count++){
-            if(count == num){
-                aes_xor_class_plain(output, *(it->plain.data()+1));
-            }
-        }
-    }else if(tag == 3){
-        int count = 0;
-        for(std::vector<node_tuple_mz>::iterator it = encryptedTreeV.begin(); it < encryptedTreeV.end(); it++, count++){
-            if(count == num){
-                aes_xor_class_plain(output, *(it->plain.data()+2));
-            }
-        }
-    }else{
-        printf("wrong tag!");
-        return;
-    }
+
+    aes_xor_class_plain(output, *(encryptedTreeV[num].plain.data() + tag - 1));
+
+    // if(tag == 1){
+    //     aes_xor_class_plain(output, encryptedTreeV[num].plain[tag-1]);
+    //     int count = 0;
+    //     for(std::vector<node_tuple_mz>::iterator it = encryptedTreeV.begin(); it < encryptedTreeV.end(); it++, count++){
+    //         if(count == num){
+    //             aes_xor_class_plain(output, *(it->plain.data()));
+    //         }
+    //     }
+    // }else if(tag == 2){
+    //     int count = 0;
+    //     for(std::vector<node_tuple_mz>::iterator it = encryptedTreeV.begin(); it < encryptedTreeV.end(); it++, count++){
+    //         if(count == num){
+    //             aes_xor_class_plain(output, *(it->plain.data()+1));
+    //         }
+    //     }
+    // }else if(tag == 3){
+    //     int count = 0;
+    //     for(std::vector<node_tuple_mz>::iterator it = encryptedTreeV.begin(); it < encryptedTreeV.end(); it++, count++){
+    //         if(count == num){
+    //             aes_xor_class_plain(output, *(it->plain.data()+2));
+    //         }
+    //     }
+    // }else{
+    //     printf("wrong tag!");
+    //     return;
+    // }
 }
 
 void prf_vector_lowmc_by_key(int tag, uint64_t num, BYTE* key, size_t key_length, std::vector<node_tuple_mz>& encryptedTreeV) {

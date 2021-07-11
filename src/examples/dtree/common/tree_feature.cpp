@@ -84,7 +84,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
     
 
     // ---- ABY init --------
-	ABYParty* party = new ABYParty(role, address, port, seclvl, bitlen, nthreads, mt_alg, 4000000);
+	ABYParty* party = new ABYParty(role, address, port, seclvl, bitlen, nthreads, mt_alg);
 	vector<Sharing*>& sharings = party->GetSharings();
     crypto* crypt = new crypto(seclvl.symbits, (uint8_t*) const_seed);
 	Circuit *circ = sharings[sharing]->GetCircuitBuildRoutine();
