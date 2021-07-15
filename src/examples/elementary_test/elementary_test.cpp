@@ -1,5 +1,5 @@
 /**
- \file 		millionaire_prob_test.cpp
+ \file 		innerproduct_test.cpp
  \author	sreeram.sadasivam@cased.de
  \copyright	ABY - A Framework for Efficient Mixed-protocol Secure Two-party Computation
 			Copyright (C) 2019 Engineering Cryptographic Protocols Group, TU Darmstadt
@@ -13,7 +13,7 @@
             GNU Lesser General Public License for more details.
             You should have received a copy of the GNU Lesser General Public License
             along with this program. If not, see <http://www.gnu.org/licenses/>.
- \brief		Millionaire problem Test class implementation.
+ \brief		Inner Product Test class implementation.
  */
 
 //Utility libs
@@ -22,26 +22,22 @@
 //ABY Party class
 #include "../../abycore/aby/abyparty.h"
 
-#include "common/millionaire_prob.h"
+#include "common/elementary.h"
 
 int32_t read_test_options(int32_t* argcp, char*** argvp, e_role* role,
-		uint32_t* bitlen, uint32_t* nvals, uint32_t* secparam, std::string* address,
-		uint16_t* port, int32_t* test_op) {
+		uint32_t* bitlen, uint32_t* numbers, uint32_t* secparam, std::string* address,
+		uint32_t* port, int32_t* test_op) {
 
 	uint32_t int_role = 0, int_port = 0;
 
 	parsing_ctx options[] =
-			{ { (void*) &int_role, T_NUM, "r", "Role: 0/1", true, false }, {
-					(void*) nvals, T_NUM, "n",
-					"Number of parallel operation elements", false, false }, {
-					(void*) bitlen, T_NUM, "b", "Bit-length, default 32", false,
-					false }, { (void*) secparam, T_NUM, "s",
-					"Symmetric Security Bits, default: 128", false, false }, {
-					(void*) address, T_STR, "a",
-					"IP-address, default: localhost", false, false }, {
-					(void*) &int_port, T_NUM, "p", "Port, default: 7766", false,
-					false }, { (void*) test_op, T_NUM, "t",
-					"Single test (leave out for all operations), default: off",
+			{ { (void*) &int_role, T_NUM, "r", "Role: 0/1", true, false },
+			  { (void*) numbers, T_NUM, "n",	"Number of elements for inner product, default: 128", false, false },
+			  {	(void*) bitlen, T_NUM, "b", "Bit-length, default 16", false, false },
+			  { (void*) secparam, T_NUM, "s", "Symmetric Security Bits, default: 128", false, false },
+			  {	(void*) address, T_STR, "a", "IP-address, default: localhost", false, false },
+			  {	(void*) &int_port, T_NUM, "p", "Port, default: 7766", false, false },
+			  { (void*) test_op, T_NUM, "t", "Single test (leave out for all operations), default: off",
 					false, false } };
 
 	if (!parse_options(argcp, argvp, options,
@@ -55,11 +51,9 @@ int32_t read_test_options(int32_t* argcp, char*** argvp, e_role* role,
 	*role = (e_role) int_role;
 
 	if (int_port != 0) {
-		assert(int_port < 1 << (sizeof(uint16_t) * 8));
-		*port = (uint16_t) int_port;
+		assert(int_port < 1 << (sizeof(uint32_t) * 8));
+		*port = (uint32_t) int_port;
 	}
-
-	//delete options;
 
 	return 1;
 }
@@ -67,23 +61,18 @@ int32_t read_test_options(int32_t* argcp, char*** argvp, e_role* role,
 int main(int argc, char** argv) {
 
 	e_role role;
-	uint32_t bitlen = 32, nvals = 31, secparam = 128, nthreads = 1;
-	uint16_t port = 7766;
+	uint32_t bitlen = 32, numbers = 100, secparam = 128, nthreads = 1;
+	uint32_t port = 7766;
 	std::string address = "127.0.0.1";
 	int32_t test_op = -1;
 	e_mt_gen_alg mt_alg = MT_OT;
 
-	read_test_options(&argc, &argv, &role, &bitlen, &nvals, &secparam, &address,
-			&port, &test_op);
+	read_test_options(&argc, &argv, &role, &bitlen, &numbers, &secparam, &address, &port, &test_op);
 
 	seclvl seclvl = get_sec_lvl(secparam);
 
-	//evaluate the millionaires circuit using Yao
-	test_millionaire_prob_circuit(role, address, port, seclvl, 32,
-			nthreads, mt_alg, S_BOOL);
-	//evaluate the millionaires circuit using GMW
-	//test_millionaire_prob_circuit(role, address, port, seclvl, 32,
-	//		nthreads, mt_alg, S_BOOL);
+	// call test routine. set size with cmd-parameter -n <size>
+	test_elementary_circuit(role, address, port, seclvl, numbers, bitlen, nthreads, mt_alg);
 
 	return 0;
 }

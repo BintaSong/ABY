@@ -61,7 +61,7 @@ int32_t test_inner_product_circuit(e_role role, const std::string& address, uint
 	std::vector<uint16_t> yvals(numbers);
 
 	uint32_t i;
-	srand(time(NULL));
+	srand(0);
 
 	/**
 	 Step 6: Fill the arrays xvals and yvals with the generated random values.
@@ -75,8 +75,8 @@ int32_t test_inner_product_circuit(e_role role, const std::string& address, uint
 	 */
 	for (i = 0; i < numbers; i++) {
 
-		x = rand();
-		y = rand();
+		x = i;
+		y = i;
 
 		v_sum += x * y;
 

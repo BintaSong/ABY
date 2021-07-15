@@ -429,7 +429,7 @@ int32_t add_test_circuit(e_role role, const std::string& address, uint16_t port,
         s_a = circ->PutSharedINGate(a1_int, bitlen);
 		s_b = circ->PutSharedINGate(b1_int, bitlen);
 	}
-	out = circ->PutGTGate(s_a, s_b);
+	out = BuildADDCircuit(s_a, s_b, (BooleanCircuit*) circ); //out = circ->PutGTGate(s_a, s_b);
 	// out = circ->PutSharedOUTGate(out);
 	// Execute again and get the reconstructed result
     party->ExecCircuit();

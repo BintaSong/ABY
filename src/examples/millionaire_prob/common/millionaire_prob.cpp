@@ -112,6 +112,8 @@ int32_t test_millionaire_prob_circuit(e_role role, const std::string& address, u
 				<< " sharing: " << std::endl;
 	std::cout << "\nAlice Money:\t" << alice_money;
 	std::cout << "\nBob Money:\t" << bob_money;
+
+	std::cout << "\nOutput:\t" << output;
 	std::cout << "\nCircuit Result:\t" << (output ? ALICE : BOB);
 	std::cout << "\nVerify Result: \t" << ((alice_money > bob_money) ? ALICE : BOB)
 				<< "\n";

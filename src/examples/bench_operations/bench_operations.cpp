@@ -470,11 +470,11 @@ int32_t bench_operations(aby_ops_t* bench_ops, uint32_t nops, ABYParty* party, u
 			if(!detailed) {
 				std::cout << op_time/nruns << "\t";
 			}
-		}
+		} //end for nbitlens
 		if(!detailed)
 			std::cout << std::endl;
 
-	}
+	} //end for nops
 
 	if(aes_remark){
 		std::cout << "\n* =  AES only works with bitlen >= 8" << std::endl;
@@ -495,8 +495,8 @@ bool run_bench(e_role role, const std::string& address, uint16_t port, seclvl se
 		uint32_t nruns, e_mt_gen_alg mt_alg, uint32_t nthreads, bool numbers_only, bool no_verify, bool detailed) {
 
 	uint32_t nops, nbitlens;
-	//uint64_t seed = 0xAAAAAAAAAAAAAAAA;
-	uint64_t seed = time(NULL);
+	uint64_t seed = 0x1234;
+	// uint64_t seed = time(NULL);
 
 	aby_ops_t* op;
 
@@ -543,7 +543,7 @@ bool run_bench(e_role role, const std::string& address, uint16_t port, seclvl se
 
 int main(int argc, char** argv) {
 	e_role role;
-	uint32_t secparam = 128, nvals = 1, nruns = 1;
+	uint32_t secparam = 128, nvals = 1, nruns = 100;
 	uint16_t port = 7766;
 	std::string address = "127.0.0.1";
 	int32_t operation = -1, bitlen = -1;
