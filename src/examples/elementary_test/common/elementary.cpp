@@ -28,7 +28,7 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 	 basis of the role played by this object.
 	 */
 	ABYParty* party = new ABYParty(role, address, port, seclvl, bitlen, nthreads,
-			mt_alg);
+			mt_alg, 6553600);
 
 	/**
 	 Step 2: Get to know all the sharing types available in the program.
@@ -67,15 +67,13 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 
 	for (i = 0; i < numbers; i++) {
 
-		x = rand() % (2 << 6);
-		y = rand() % (2 << 6);
+		x = rand() % (2 << 16);
+		y = rand() % (2 << 16);
 
 		//v_sum += x + y;
 
 		xvals[i] = x;
 		yvals[i] = y;
-
-		std::cout << "\n xvals[i] : " << xvals[i] << std::endl;
 
 	}
 
@@ -109,6 +107,20 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 // 	// s1 *= tmp ; //}
 // uint32_t real = xvals[0] * xvals[1] * xvals[2] * xvals[3] / (64*8); 
 // std::cout << "\n real : " << real << std::endl;
+
+
+    OddEvenMergeSort(xvals.data(), 0, numbers); 
+	for (uint32_t i = 0; i < numbers; i++) {
+		std::cout << "\n element " << i << " : " << xvals[i] << std::endl;
+	}
+
+
+
+
+
+
+
+	
 
 
 //-------------------test add-------------------
@@ -258,39 +270,30 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 // 				}
 // 	}
 // }
-	uint32_t sorted = 0;
 
-	share* s_cmp, *s_sorted, *s_one, *s_zero; 
 
-	s_one = bc->PutINGate((uint32_t)1, 32, SERVER);
-	s_zero = bc->PutINGate((uint32_t)0, 32, SERVER);
 
-	for (uint32_t i = 0; i < numbers; i++) {
-		share_ptr_vec[i] = bc->PutINGate(xvals[i], 32, SERVER);
-	}
+	// for (uint32_t i = 0; i < numbers; i++) {
+	// 	share_ptr_vec[i] = bc->PutINGate(xvals[i], 32, SERVER);
+	// }
 
-	uint32_t odd_even = 0;
+	// BuildOddEvenMergeSort(share_ptr_vec, 0, numbers, bc);  
 
-	while(!sorted) {
-		s_sorted = s_one;
-		for (odd_even = 0; odd_even < 2; odd_even++) {
-			for (uint32_t i = odd_even; i < numbers-1; i++) {
-				s_cmp = bc->PutGTGate(share_ptr_vec[i], share_ptr_vec[i+1]);
-				share *tmp1, *tmp2;
-				tmp1 = bc->PutMUXGate(share_ptr_vec[i+1], share_ptr_vec[i], s_cmp);
-				tmp2 = bc->PutMUXGate(share_ptr_vec[i], share_ptr_vec[i+1], s_cmp);
-				share_ptr_vec[i] = tmp1;
-				share_ptr_vec[i+1] = tmp2;
+	// for (uint32_t i = 0; i < numbers; i++) {
+	// 	share_ptr_vec[i] = bc->PutOUTGate(share_ptr_vec[i], ALL);
+	// }
 
-				s_sorted = bc->PutMUXGate(s_zero, s_sorted, s_cmp);
-			}
-		}
-		
+	// party->ExecCircuit(); 
+	
+	// for (uint32_t i = 0; i < numbers; i++) {
+	// 	uint32_t element = share_ptr_vec[i]->get_clear_value<uint32_t>();
+	// 	std::cout << "\n element " << i << " : " << element << std::endl;
+	// }
 
-	} 
+	op_time = party->GetTiming(P_ONLINE) + party->GetTiming(P_SETUP);
+	std::cout << "\n Sort \t Total time: " << op_time  << "ms" << std::endl;
 
 	party->Reset();
-
 
 
 	delete s_x_vec;
@@ -357,4 +360,71 @@ share* BuildMaxCircuit(share *s_x, share *s_y, uint32_t numbers, ArithmeticCircu
 
 
 	return out;
+}
+
+
+
+void BuildEvenMerge(share **s_vec, uint32_t lo, uint32_t n, uint32_t r, BooleanCircuit* bc) {
+	uint32_t m = r*2;
+	if(m < n) {
+		BuildEvenMerge(s_vec, lo, n, m, bc);
+		BuildEvenMerge(s_vec, lo+r, n, m, bc); 
+		share *s_cmp, *tmp1, *tmp2;
+		for (uint32_t i = lo + r; i + r < lo+n; i += m) {
+			// compare and exchange (i, i+1) 
+			s_cmp = bc -> PutGTGate(s_vec[i], s_vec[i+r]); 
+			tmp1 = bc->PutMUXGate(s_vec[i+r], s_vec[i], s_cmp); 
+			tmp2 = bc->PutMUXGate(s_vec[i], s_vec[i+r], s_cmp); 
+			s_vec[i] = tmp1;
+			s_vec[i+r] = tmp2;
+		}
+	}
+	else { // compare and exchange (lo, lo+r)
+		share *s_cmp = bc -> PutGTGate(s_vec[lo], s_vec[lo+r]); 
+		share *tmp1, *tmp2;
+		tmp1 = bc->PutMUXGate(s_vec[lo+r], s_vec[lo], s_cmp); 
+		tmp2 = bc->PutMUXGate(s_vec[lo], s_vec[lo+r], s_cmp); 
+		s_vec[lo] = tmp1;
+		s_vec[lo+r] = tmp2;
+	}
+}
+
+void BuildOddEvenMergeSort(share **s_vec, uint32_t lo, uint32_t n, BooleanCircuit* bc) {
+	if (n > 1) {
+		uint32_t m = n / 2;
+		BuildOddEvenMergeSort(s_vec, lo, m, bc);
+		BuildOddEvenMergeSort(s_vec, lo+m, m, bc);
+		BuildEvenMerge(s_vec, lo, n, 1, bc);
+	}
+}
+
+void EvenMerge(uint32_t *vec, uint32_t lo, uint32_t n, uint32_t r) {
+	uint32_t m = r*2;
+	if(m < n) {
+		EvenMerge(vec, lo, n, m);
+		EvenMerge(vec, lo+r, n, m); 
+		for (uint32_t i = lo + r; i + r < lo+n; i += m) {
+			// compare and exchange (i, i+1) 
+			if (vec[i] > vec[i+r]) {
+				uint32_t tmp = vec[i];
+				vec[i] = vec[i+r];
+				vec[i+r] = tmp; 
+			}
+		}
+	}
+	else { // compare and exchange (lo, lo+r)
+		if (vec[lo] > vec[lo+r]) {
+			uint32_t tmp = vec[lo]; 
+			vec[lo] = vec[lo+r]; 
+			vec[lo+r] = tmp; 
+		}
+	}
+}
+void OddEvenMergeSort(uint32_t *vec, uint32_t lo, uint32_t n) { 
+	if (n > 1) {
+		uint32_t m = n / 2;
+		OddEvenMergeSort(vec, lo, m);
+		OddEvenMergeSort(vec, lo+m, m);
+		EvenMerge(vec, lo, n, 1);
+	}
 }
