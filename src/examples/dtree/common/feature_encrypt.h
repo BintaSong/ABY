@@ -27,6 +27,8 @@ void ss_real_feature(int num);
 node_tuple_mz return_feature(uint64_t num, uint64_t featureMax);
 //this is for test, each evalue of attribute is fixed
 node_tuple_mz return_fixed_feature(uint64_t featureDim, uint64_t featureMax);
+node_tuple_mz encrypt_fixed_feature(uint64_t featureDim, uint64_t featureMax); 
+
 void print_ss_tuple_mz(node_tuple_mz& tuple);
 void prf_aes_128_by_key(uint64_t num, BYTE key[16], node_tuple_mz & feature);
 void prf_aes_128_decrypt_by_key_feature(uint64_t num, mpz_class &result);

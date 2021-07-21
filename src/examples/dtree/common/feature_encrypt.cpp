@@ -9,6 +9,7 @@ BYTE key4[] = { 0x21, 0xE6, 0xAE, 0x3B,
         0x71, 0x46, 0x0D, 0x5A
     };
 
+keyblock lowmc_feature_key = 0x0102;
 
 //real feature although genarated in random...
 void ss_real_feature(int num){
@@ -79,6 +80,35 @@ node_tuple_mz return_fixed_feature(uint64_t featureDim, uint64_t featureMax){
     return feature;
 }
 
+
+node_tuple_mz encrypt_fixed_feature(uint64_t featureDim, uint64_t featureMax){
+    // mpz_class a("123456789");
+    // std::cout << a.get_str(2) << std::endl; //base 2 representation
+    node_tuple_mz feature(featureMax,1);
+    for(uint64_t i = 0; i < featureMax; i++){
+        if(i < featureDim){
+            *(feature.plain.data() + i) = i;
+        }else{
+            *(feature.plain.data() + i) = 0;
+        }
+    }
+#ifdef DTREE_DEBUG
+    printf("************feature**********************\n");
+    print_ss_tuple_mz(feature);
+#endif 
+
+    LowMC lowmc(lowmc_feature_key); 
+
+    for(uint64_t i = 0; i < featureDim; i++){
+        block mask = lowmc.encrypt(i); 
+        mpz_xor_mask(mask, blocksize, *(feature.plain.data() + i));
+    }
+#ifdef DTREE_DEBUG
+    printf("************encryptedfeature**********************\n");
+    print_ss_tuple_mz(feature);
+#endif 
+    return feature;
+}
 
 //print the ss_tuple_mz
 void print_ss_tuple_mz(node_tuple_mz& tuple){

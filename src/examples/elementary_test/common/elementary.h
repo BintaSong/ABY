@@ -60,6 +60,8 @@ share* BuildMaxCircuit(share *s_x, share *s_y, uint32_t numbers, ArithmeticCircu
 
 void BuildEvenMerge(share **s_vec, uint32_t lo, uint32_t n, uint32_t r, BooleanCircuit* bc); 
 
+void BuildBubbleSort(share **s_vec, uint32_t length, BooleanCircuit* bc); 
+
 void BuildOddEvenMergeSort(share **s_vec, uint32_t lo, uint32_t n, BooleanCircuit* bc); 
 
 void OddEvenMergeSort(uint32_t *vec, uint32_t lo, uint32_t n); 

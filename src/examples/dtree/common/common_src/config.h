@@ -18,4 +18,6 @@ typedef unsigned char BYTE;
 
 //#define DTREE_DEBUG
 
+#define DTREE_ENCRYPTED_BY_LOWMC 1
+
 #endif

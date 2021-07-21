@@ -65,6 +65,28 @@ void aes_xor_class_plain(BYTE in[16], mpz_class& plain){
 #endif
 }
 
+void mpz_xor_mask(block mask, uint16_t mask_len, mpz_class& plain){
+    /*
+        `mask`: the mask to be xored with `plain` 
+        `plain`: the mpz_class value needs to be xored, for this function |`plain`| == |mask|
+    */
+
+    assert(mask.size() == mask_len); 
+
+    mpz_class tmp;
+    for (uint16_t i = 0; i < mask_len; i++) {
+        if (mask[i]) {
+            mpz_setbit(tmp.get_mpz_t(), i);
+        }
+    }
+    plain = plain ^ tmp;
+
+    #ifdef DTREE_DEBUG
+        gmp_printf("plain is %Zd\n", plain.get_mpz_t());
+    #endif
+}
+
+
 //将128bit数分解为两个64位数。de_concate_result0为低64位，de_concate_result1为高64位,因为低位为64个零，这里只取高位
 void deconcatenate(mpz_class concate_result, mpz_class& de_concate_result1){
     mpz_class div = pow(2, 64);

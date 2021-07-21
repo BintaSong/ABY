@@ -28,7 +28,7 @@ public:
     #if LOWMC_PLAIN_DEBUG 
         std::cout<< "raw key: " <<std::endl; 
         std::cout<< key << std::endl;
-    #endif 
+    #endif
     };
 
    // block encrypt (const block message);

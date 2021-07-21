@@ -41,7 +41,15 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
 #endif
     //----------------tree and feature reading----------------
     uint64_t node[5];
-	vector<node_tuple_mz> encryptedTree = return_tree(tree, node);
+
+
+// you can choose to encrypt the decision tree either by aes or lowmc
+#if DTREE_ENCRYPTED_BY_LOWMC 
+	vector<node_tuple_mz> encryptedTree = encrypt_tree(tree, node); // encrypt tree using lowMC
+#else 
+    vector<node_tuple_mz> encryptedTree = return_tree(tree, node);  // encrypt tree using AES
+#endif
+
 #ifdef DTREE_DEBUG
     for(int i = 0; i < 5; i++){
         cout << node[i] << endl;
@@ -54,8 +62,12 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
     */
 
     //for test....generating fixed attribute values of feature vector
-    node_tuple_mz encryptedFeature = return_fixed_feature(featureDim, featureMax);
 
+#if DTREE_ENCRYPTED_BY_LOWMC 
+    node_tuple_mz encryptedFeature = encrypt_fixed_feature(featureDim, featureMax);
+#else
+    node_tuple_mz encryptedFeature = return_fixed_feature(featureDim, featureMax);
+#endif 
     //-----------Read Evaluation Result of FSS for feature----------------
     vector<int> zeroOrOneFt;
     FSSFeatureRead(role, fssResultFile1, fssResultFile2, zeroOrOneFt, featureMax, featureDim);

@@ -81,44 +81,11 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 	double op_time; 
 
 
-// //-------------------test float number----------
-// float s1 = 1.0;
-// uint32_t s2 = 1 << 3;
-
-// for (uint32_t i = 0; i < 4; i++) {
-// 	float tmp = (float) xvals[i] / 8;
-// 	std::cout << "\n tmp : " << tmp << std::endl;
-// 	// s1 *= tmp ; 
-// 	s2 = s2 * xvals[i] >> 3;
-// }
-// // 100000010100101001011010
-// // 111001001000110
-// // 101110
-// std::cout << "\n s2 : " << s2 << std::endl;
-
-// //for (uint32_t i = 0; i < 4; i += 1) { 
-// 	//float tmp = (float) xvals[i] / 128;
-// 	uint32_t tmp1 = xvals[0] * xvals[1] >> 3;
-// 	uint32_t tmp2 = xvals[2] * xvals[3] >> 3;
-// 	uint32_t tmp3 = tmp1 * tmp2 >> 3;
-
-// 	std::cout << "\n s2 : " << tmp3 << std::endl;
-
-// 	// s1 *= tmp ; //}
-// uint32_t real = xvals[0] * xvals[1] * xvals[2] * xvals[3] / (64*8); 
-// std::cout << "\n real : " << real << std::endl;
-
-
-    OddEvenMergeSort(xvals.data(), 0, numbers); 
-	for (uint32_t i = 0; i < numbers; i++) {
-		std::cout << "\n element " << i << " : " << xvals[i] << std::endl;
-	}
-
-
-
-
-
-
+//-------------------test OddEvenMergeSort-------------------
+    // OddEvenMergeSort(xvals.data(), 0, numbers); 
+	// for (uint32_t i = 0; i < numbers; i++) {
+	// 	std::cout << "\n element " << i << " : " << xvals[i] << std::endl;
+	// }
 
 	
 
@@ -231,7 +198,7 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 		s_x_vec->set_wire_id(0, ac->PutADDGate(s_x_vec->get_wire_id(0), s_x_vec->get_wire_id(i)));
 		s_x2_vec->set_wire_id(0, ac->PutADDGate(s_x2_vec->get_wire_id(0), s_x2_vec->get_wire_id(i)));
 	}
-	s_x_vec->set_bitlength(1);
+	s_x_vec->set_bitlength(1); 
 	s_x2_vec->set_bitlength(1);
 	s_sum = ac->PutMULGate(s_x_vec, s_x_vec);
 	
@@ -273,27 +240,29 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 
 
 
-	// for (uint32_t i = 0; i < numbers; i++) {
-	// 	share_ptr_vec[i] = bc->PutINGate(xvals[i], 32, SERVER);
-	// }
+	for (uint32_t i = 0; i < numbers; i++) {
+		share_ptr_vec[i] = bc->PutINGate(xvals[i], 32, SERVER);
+	}
 
 	// BuildOddEvenMergeSort(share_ptr_vec, 0, numbers, bc);  
 
-	// for (uint32_t i = 0; i < numbers; i++) {
-	// 	share_ptr_vec[i] = bc->PutOUTGate(share_ptr_vec[i], ALL);
-	// }
+	BuildBubbleSort(share_ptr_vec, numbers, bc);
 
-	// party->ExecCircuit(); 
+	for (uint32_t i = 0; i < numbers; i++) {
+		share_ptr_vec[i] = bc->PutOUTGate(share_ptr_vec[i], ALL);
+	}
+
+	party->ExecCircuit(); 
 	
-	// for (uint32_t i = 0; i < numbers; i++) {
-	// 	uint32_t element = share_ptr_vec[i]->get_clear_value<uint32_t>();
-	// 	std::cout << "\n element " << i << " : " << element << std::endl;
-	// }
+	for (uint32_t i = 0; i < numbers; i++) {
+		uint32_t element = share_ptr_vec[i]->get_clear_value<uint32_t>();
+		std::cout << "\n element " << i << " : " << element << std::endl;
+	}
 
 	op_time = party->GetTiming(P_ONLINE) + party->GetTiming(P_SETUP);
 	std::cout << "\n Sort \t Total time: " << op_time  << "ms" << std::endl;
 
-	party->Reset();
+	// party->Reset();
 
 
 	delete s_x_vec;
@@ -362,7 +331,30 @@ share* BuildMaxCircuit(share *s_x, share *s_y, uint32_t numbers, ArithmeticCircu
 	return out;
 }
 
+// void bubbleSort(int arr[], int n)
+// {
+//     int i, j;
+//     for (i = 0; i < n-1; i++)    
+     
+//     // Last i elements are already in place
+//     for (j = 0; j < n-i-1; j++)
+//         if (arr[j] > arr[j+1])
+//             swap(&arr[j], &arr[j+1]);
+// }
 
+void BuildBubbleSort(share **s_vec, uint32_t length, BooleanCircuit* bc) {
+
+	share *s_cmp, *s_big, *s_small; 
+	for (uint32_t i = 0; i < length - 1; i++) {
+		for (uint32_t j = 0; j < length - i - 1; j++) {
+			s_cmp = bc->PutGTGate(s_vec[j], s_vec[j+1]);
+			s_big = bc->PutMUXGate(s_vec[j], s_vec[j+1], s_cmp); 
+			s_small = bc->PutMUXGate(s_vec[j+1], s_vec[j], s_cmp); 
+			s_vec[j+1] = s_big;
+			s_vec[j] = s_small;
+		}
+	}
+}
 
 void BuildEvenMerge(share **s_vec, uint32_t lo, uint32_t n, uint32_t r, BooleanCircuit* bc) {
 	uint32_t m = r*2;
@@ -388,6 +380,7 @@ void BuildEvenMerge(share **s_vec, uint32_t lo, uint32_t n, uint32_t r, BooleanC
 		s_vec[lo+r] = tmp2;
 	}
 }
+
 
 void BuildOddEvenMergeSort(share **s_vec, uint32_t lo, uint32_t n, BooleanCircuit* bc) {
 	if (n > 1) {
