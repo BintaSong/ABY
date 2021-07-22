@@ -144,27 +144,28 @@ void keyschedule(CBitVector& raw_key, CBitVector& extend_key, const LowMCParams*
 	}
 }
 
-void lowmc_circuit_shared_input(e_role role, uint32_t nvals, crypto* crypt, e_sharing sharing, ABYParty *party, std::vector<Sharing *> &sharings, Circuit *circ, LowMCParams* para,
-                BYTE* inputShare, BYTE* outputShare, e_role key_inputter) {
+void test_lowmc_circuit_shared_input(e_role role, uint32_t nvals, crypto* crypt, e_sharing sharing, ABYParty *party, std::vector<Sharing *> &sharings, Circuit *circ, LowMCParams* para,
+                BYTE* key, BYTE* inputShare, BYTE* outputShare, e_role key_inputter) {
 	
-	uint32_t bitlen = 32, ctr = 0, exp_key_bitlen = para->blocksize * (para->nrounds+1), zero_gate;
+	uint32_t exp_key_bitlen = para->blocksize * (para->nrounds+1);
 
+
+	// we want load_lowmc_state() and keyschedule() only be done once, to make lowmc_circuit_shared_input() focus on main task 
 	load_lowmc_state(para);
 
 	CBitVector raw_key(para->keysize), extend_key(exp_key_bitlen);
-
-	// BYTE ltp_client_key[] = {0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-	// BYTE ltp_server_key[] = {0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-	
 	if (role == key_inputter) {
-		if (role == CLIENT) {
-			raw_key.SetBytes(ltp_client_key, 0, para->keysize/8); 
-		}
-		else {
-			raw_key.SetBytes(ltp_server_key, 0, para->keysize/8); 
-		}
+		raw_key.SetBytes(key, 0, para->keysize/8); 
 		keyschedule(raw_key, extend_key, para);
 	}
+
+	lowmc_circuit_shared_input(role, nvals, crypt, sharing, party, sharings, circ, para, extend_key, inputShare, outputShare, key_inputter); 
+}
+
+void lowmc_circuit_shared_input(e_role role, uint32_t nvals, crypto* crypt, e_sharing sharing, ABYParty *party, std::vector<Sharing *> &sharings, Circuit *circ, LowMCParams* para,
+                CBitVector& extend_key, BYTE* inputShare, BYTE* outputShare, e_role key_inputter) {
+	
+	uint32_t exp_key_bitlen = para->blocksize * (para->nrounds+1), zero_gate;
 	
 	//Circuit* circ = sharings[sharing]->GetCircuitBuildRoutine();
 	//Circuit build routine works for Boolean circuits only
@@ -192,11 +193,28 @@ void lowmc_circuit_shared_input(e_role role, uint32_t nvals, crypto* crypt, e_sh
 
 	uint8_t* output = s_ciphertext->get_clear_value_ptr();
 
+	// CBitVector out;
+	// out.AttachBuf(output, (uint64_t) ceil_divide(para->blocksize, 8) * nvals);
+	// //std::cout << param->blocksize << " .. " << out.GetSize() <<std::endl; 
+
+	// std::cout<< "two party lowMC ciphertext size: " << out.GetSize()*8 <<std::endl; 
+	// for (int i = 0; i < out.GetSize()*8; i++) {
+	// 	//std::cout<< std::hex <<  std::setw(2) << std::setfill('0') << (int) out.GetByte(i);
+	// 	std::cout<< (int) out.GetBit(i);
+	// }
+	// std::cout<<std::endl;
+
 	memcpy(outputShare, output, (uint64_t) ceil_divide(para->blocksize, 8) * nvals);
 	
-	std::cout << party->GetTiming(P_SETUP) << "\t" << party->GetTiming(P_ONLINE) << "\t" << party->GetTiming(P_TOTAL) << std::endl;
+	// std::cout << party->GetTiming(P_SETUP) << "\t" << party->GetTiming(P_ONLINE) << "\t" << party->GetTiming(P_TOTAL) << std::endl;
+
+	// for (int j = 0; j < ceil_divide(para->blocksize, 8) * nvals; j++) {
+	// 	std::cout << std::bitset<8>(outputShare[j]);
+	// }
+	// std::cout<<std::endl;
 
 	free(output);
+
 }
 
 
@@ -593,3 +611,9 @@ bool is_file(const std::string& path)
     }
     return false;
 }
+
+
+// lowmcCircuit::lowmcCircuit(const LowMCParams* param) {
+// 	load_lowmc_state(param);
+	
+// }

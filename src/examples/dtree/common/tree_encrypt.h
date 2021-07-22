@@ -19,7 +19,7 @@
 #include "tree_read_from_file.h"
 #include "test_oblivious_read.h"
 #include "pAES.h"
-#include "LowMC.h"
+//#include "LowMC.h"
 #include "common.h"
 #include "../../../abycore/circuit/circuit.h"
 #include "../../../abycore/aby/abyparty.h"

@@ -23,7 +23,7 @@
 #include "../../abycore/sharing/sharing.h"
 
 #include <iomanip>
-#include <bitset>
+
 
 
 int32_t read_test_options(int32_t* argcp, char*** argvp, e_role* role, uint32_t* nvals, uint32_t* secparam, std::string* address, uint16_t* port, uint32_t* statesize, uint32_t* keysize,
@@ -69,7 +69,7 @@ int main(int argc, char** argv) {
 	read_test_options(&argc, &argv, &role, &nvals, &secparam, &address, &port, &statesize, &keysize, &sboxes, &rounds, &maxnumgates);
 
 	crypto* crypt = new crypto(secparam, (uint8_t*) const_seed);
-	test_lowmc_circuit(role, address, port, nvals, nthreads, mt_alg, S_BOOL, statesize, keysize, sboxes, rounds, maxnumgates, crypt);
+	// test_lowmc_circuit(role, address, port, nvals, nthreads, mt_alg, S_BOOL, statesize, keysize, sboxes, rounds, maxnumgates, crypt);
 	
 	// uint64_t test = 0x0102;
     // char str[33] = {};
@@ -81,40 +81,39 @@ int main(int argc, char** argv) {
 
 
 	// FIXME: lowmc test over shared input and output
-	// LowMCParams param = {sboxes, keysize, statesize, keysize == 80 ? 64 : (uint32_t) 128, rounds};
+	LowMCParams param = {sboxes, keysize, statesize, keysize == 80 ? 64 : (uint32_t) 128, rounds};
 
-	// ABYParty* party;
-	// if(maxnumgates > 0)
-	// 	party = new ABYParty(role, address, port, crypt->get_seclvl(), bitlen, nthreads, mt_alg, maxnumgates);
-	// else
-	// 	party = new ABYParty(role, address, port, crypt->get_seclvl(), bitlen, nthreads, mt_alg);
+	ABYParty* party;
+	if(maxnumgates > 0)
+		party = new ABYParty(role, address, port, crypt->get_seclvl(), bitlen, nthreads, mt_alg, maxnumgates);
+	else
+		party = new ABYParty(role, address, port, crypt->get_seclvl(), bitlen, nthreads, mt_alg);
 
-	// std::vector<Sharing*>& sharings = party->GetSharings();
-	// Circuit* circ = sharings[S_BOOL]->GetCircuitBuildRoutine();
+	std::vector<Sharing*>& sharings = party->GetSharings();
+	Circuit* circ = sharings[S_BOOL]->GetCircuitBuildRoutine();
 	
 	// assert(circ->GetCircuitType() == C_BOOLEAN);
 
-	// BYTE test_input[param.blocksize * nvals] = {0x2, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
-	//                                     0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-	// BYTE test_mask[param.blocksize * nvals] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
-	//                                    0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+	BYTE test_input[param.blocksize * nvals] = {0x2, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
+	                                    0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+	BYTE test_mask[param.blocksize * nvals] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
+	                                   0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 	
-
+	BYTE lowmc_key[] = {0x04, 0x03, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 	// // uint256_t inputShare, input_mask = 123;
-	// BYTE outputShare[(uint64_t) ceil_divide(param.blocksize, 8) * nvals];
+	BYTE outputShare[(uint64_t) ceil_divide(param.blocksize, 8) * nvals];
 
-	// if (role == CLIENT) {
-	// 	lowmc_circuit_shared_input(role, nvals, crypt, S_BOOL, party, sharings, circ, &param, test_input, outputShare, SERVER);
-	// }
-	// else {
-	// 	lowmc_circuit_shared_input(role, nvals, crypt, S_BOOL, party, sharings, circ, &param, test_mask, outputShare, SERVER);
-	// }
+	if (role == CLIENT) {
+		test_lowmc_circuit_shared_input(role, nvals, crypt, S_BOOL, party, sharings, circ, &param, lowmc_key, test_input, outputShare, SERVER);
+	}
+	else {
+		test_lowmc_circuit_shared_input(role, nvals, crypt, S_BOOL, party, sharings, circ, &param, lowmc_key, test_mask, outputShare, SERVER);
+	}
 
-
-	// for (int j = 0; j < ceil_divide(param.blocksize, 8) * nvals; j++) {
-	// 	std::cout << std::bitset<8>(outputShare[j]);
-	// }
-	// std::cout<<std::endl;
+	for (int j = 0; j < ceil_divide(param.blocksize, 8) * nvals; j++) {
+		std::cout << std::bitset<8>(outputShare[j]);
+	}
+	std::cout<<std::endl;
 
 	return 0;
 }

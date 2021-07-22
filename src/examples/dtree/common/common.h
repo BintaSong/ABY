@@ -11,7 +11,7 @@
 #include <algorithm>
 #include "common_src/config.h"
 #include "../../../abycore/aby/abyparty.h"
-#include "./LowMC.h"
+#include "../../../examples/lowmc/common/LowMC.h"
 #include <cassert>
 
 //how to initial time?
@@ -23,6 +23,8 @@
 void str2bin(const std::string& in, unsigned char out[]);
 void aes_xor_class_plain(BYTE in[16], mpz_class& plain);
 void mpz_xor_mask(block mask, uint16_t mask_len, mpz_class& plain); 
+void mpz_xor_mask(BYTE *mask, uint16_t mask_len, mpz_class& plain);
+
 void deconcatenate(mpz_class concate_result, mpz_class& de_concate_result1);
 void deconcatenate(mpz_class concate_result, uint64_t& de_concate_result1);
 void deconcatenate(mpz_class concate_result, uint64_t& de_concate_result0, uint64_t& de_concate_result1);

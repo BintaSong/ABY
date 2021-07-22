@@ -25,6 +25,18 @@ BYTE keyc4[] = { 0x21, 0xE6, 0xAE, 0x3B,
         0x71, 0x46, 0x0D, 0x5A
     };
 
+BYTE lowmc_server_key[] = {0x04, 0x03, 0x0, 0x0, 
+        0x0, 0x0, 0x0, 0x0, 
+        0x0, 0x0, 0x0, 0x0, 
+        0x0, 0x0, 0x0, 0x0
+    };
+
+BYTE lowmc_client_key[] = {0x04, 0x03, 0x0, 0x0, 
+        0x0, 0x0, 0x0, 0x0, 
+        0x0, 0x0, 0x0, 0x0, 
+        0x0, 0x0, 0x0, 0x0
+    };
+
 void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl seclvl, uint32_t bitlen, uint32_t nthreads, e_mt_gen_alg mt_alg, e_sharing sharing, string filename, uint64_t featureDim, uint64_t r, uint32_t depthHide, uint32_t nvals, [[maybe_unused]] bool verbose, bool use_vec_ands, bool expand_in_sfe, bool client_only){
 	srand((unsigned int)time(NULL)); // real random
     DecTree tree;
@@ -106,9 +118,30 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
     share* s_c;
 	share* out;
     
+    #if DTREE_ENCRYPTED_BY_LOWMC 
+        // load lowmc parametres before used
+        // FIXME: numofboxes, keysize, blocksize, keysize, rounds are defined in LowMC.h
+
+        LowMCParams param = {numofboxes, keysize, blocksize, keysize == 80 ? 64 : (uint32_t) 128, rounds};
+        load_lowmc_state(&param);
+
+        uint32_t secparam = 128, exp_key_bitlen = blocksize * (rounds+1);
+
+        CBitVector raw_server_key(keysize), raw_client_key(keysize), extend_server_key(exp_key_bitlen), extend_client_key(exp_key_bitlen);
+
+        if(role == SERVER) {
+            raw_server_key.SetBytes(lowmc_server_key, 0, keysize/8);
+            keyschedule(raw_server_key, extend_server_key, &param);
+	    }
+        else {
+            raw_client_key.SetBytes(lowmc_client_key, 0, keysize/8);
+            keyschedule(raw_client_key, extend_client_key, &param);
+        }
+    #endif
+
     for(int i = 0; i < tree.depth + depthHide; i++){
     // #ifdef DTREE_DEBUG
-        cout << "\n*****************this is in depth " << i << "******************" << endl; 
+        std::cout << "\n*****************this is in depth " << i << "******************" << endl; 
     // #endif 
         //-----------Compute delta = r ^ node[3] by Mpc----------------
         s_a = circ->PutSharedINGate(r, bitlen);
@@ -143,22 +176,33 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
     #endif
 
         //----------reveal next index of attri for AES(should be removed in the future)-----------
-        cout << ("before, node[3]: ") << node[3] << endl; // here output the value.
+        std::cout << ("before, node[3]: ") << node[3] << endl; // here output the value.
         out = circ->PutSharedINGate(node[3], bitlen);
         out = circ->PutOUTGate(out, ALL);
         party->ExecCircuit();
         //output will be the shares of the index of next node
         uint64_t nextAttriInd = out->get_clear_value<uint64_t>();
         party->Reset();
-        cout << ("after, node[3]: ") << node[3] << endl; 
-        cout << (role == SERVER?"server: ":"client: ") << nextAttriInd << endl; // here output the value.
+        std::cout << ("after, node[3]: ") << node[3] << endl; 
+        std::cout << (role == SERVER?"server: ":"client: ") << nextAttriInd << endl; // here output the value.
 
-    // #ifdef DTREE_DEBUG//AES by MPC.
+    #if DTREE_ENCRYPTED_BY_LOWMC
+        // do two-party lowmc evaluation
+
+        BYTE index_share[blocksize/8], lowmc_share[blocksize/8];
+        memcpy(index_share, &nextAttriInd, blocksize/8);
+        lowmc_circuit_shared_input(role, nvals, crypt, sharing, party, sharings, circ, &param, extend_client_key, index_share, lowmc_share, CLIENT);
+        party->Reset();
+        
+
+        
+        //mpz_xor_mask()
+    #else
         BYTE indShared[16];
         aes_circuit(role, nvals, sharing,  party, crypt, sharings, circ, node[3], indShared, keyc4, verbose, use_vec_ands, expand_in_sfe, client_only);
         party->Reset();
         aes_xor_class_plain(indShared, sharedAttri);// server and client do xor locally
-    // #endif
+    #endif
 
     #ifdef DTREE_DEBUG
         cout << "shared atrribute value from " << (role == SERVER?"server: ":"client: ") << " is " << sharedAttri << endl;

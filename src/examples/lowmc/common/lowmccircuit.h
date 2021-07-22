@@ -28,6 +28,8 @@
 #include <cstdint>
 #include <sstream>
 #include <iomanip>
+
+#include <bitset>
 //#include "LowMC.h"
 
 #define LOWMC_DEBUG 0
@@ -70,10 +72,12 @@ static BYTE ltp_server_key[] = {0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0
 void load_lowmc_state(const LowMCParams* param);
 void keyschedule(CBitVector& lowmc_raw_key, CBitVector & extend_key, const LowMCParams* param);
 void print_matrices(const LowMCParams* param);
+void test_lowmc_circuit_shared_input(e_role role, uint32_t nvals, crypto* crypt, e_sharing sharing, ABYParty *party, std::vector<Sharing *> &sharings, Circuit *circ, LowMCParams* para,
+                BYTE* key, BYTE* inputShare, BYTE* outputShare, e_role key_inputter);
 
-void lowmc_circuit_shared_input(e_role role, uint32_t nvals, crypto* crypt, e_sharing sharing,
-                 ABYParty *party, std::vector<Sharing *> &sharings, Circuit *circ, LowMCParams* para,
-                 BYTE* inputShared, BYTE* outShared, e_role key_inputter);
+// 
+void lowmc_circuit_shared_input(e_role role, uint32_t nvals, crypto* crypt, e_sharing sharing, ABYParty *party, std::vector<Sharing *> &sharings, Circuit *circ, LowMCParams* para,
+                CBitVector& extend_key, BYTE* inputShare, BYTE* outputShare, e_role key_inputter);
 
 int32_t test_lowmc_circuit(e_role role, const std::string& address, uint16_t port, uint32_t nvals, uint32_t nthreads, e_mt_gen_alg mt_alg, e_sharing sharing, uint32_t statesize, uint32_t keysize,
 		uint32_t sboxes, uint32_t rounds, uint32_t maxnumgates, crypto* crypt);
@@ -100,6 +104,23 @@ uint32_t* BuildGrayCode(uint32_t length);
 uint32_t* BuildGrayCodeIncrement(uint32_t length);
 
 bool is_file(const std::string& path);
+
+
+// class lowmcCircuit {
+
+// private:
+// 	CBitVector m_vRandomBits;
+
+
+// public:
+// 	lowmcCircuit(const LowMCParams* param);
+
+// 	void load_lowmc_state(const LowMCParams* param);
+
+// 	void lowmc_circuit_shared_input(e_role role, uint32_t nvals, crypto* crypt, e_sharing sharing,
+//                  ABYParty *party, std::vector<Sharing *> &sharings, Circuit *circ, LowMCParams* para,
+//                  BYTE* inputShared, BYTE* outShared, e_role key_inputter);
+// };
 
 
 #endif /* __LOWMCCIRCUIT_H_ */
