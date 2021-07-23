@@ -349,6 +349,28 @@ void concatenate(std::vector<node_tuple_mz>& treeV, const uint16_t block_size, s
     }
 }
 
+void deconcatenate(mpz_class blocks[], uint16_t n_blocks, uint64_t nodes[]){
+    // this is a method for parsing lowmc blocks ot nodes 
+    
+    uint16_t n_elements = ceil_divide(blocksize, 64);
+
+    uint16_t index = 0;
+    mpz_class block, element; 
+
+    for (uint16_t i = 0; i < n_blocks; i++) {
+        block = blocks[i];
+        for (uint16_t j = 0; j < n_elements; j++) {
+            
+            if (i * n_blocks + j >= 5) return ;
+            
+            element = block % pow(2, 64);
+            block >>= 64;
+            nodes[index] = mpz2uint64(element);
+            index++;
+        }
+    }
+}
+
 // void deconcatenate(mpz_class concate_result, mpz_class& de_concate_result0, mpz_class& de_concate_result1){
 //     mpz_class div = pow(2, 64);
 //     de_concate_result0 = concate_result%div;//余数为低位

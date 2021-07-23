@@ -39,6 +39,8 @@ void concatenate(std::vector<node_tuple_mz>& treeV, std::vector<node_tuple_mz>& 
 
 void concatenate(std::vector<node_tuple_mz>& treeV, const uint16_t block_size, std::vector<node_tuple_mz>& encryptedTreeV); 
 
+void deconcatenate(mpz_class blocks[], uint16_t n_blocks, uint64_t nodes[]); 
+
 void deconcatenate(mpz_class concate_result, mpz_class& de_concate_result0, mpz_class& de_concate_result1);
 
 void prf_vector_aes_128_by_key(int tag, uint64_t num, BYTE key[16], 

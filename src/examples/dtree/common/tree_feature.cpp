@@ -115,6 +115,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
     Circuit* ac = sharings[S_ARITH]->GetCircuitBuildRoutine();//for converting
     share* s_a;
     share* s_b;
+    share* s_cmp; 
     share* s_c;
 	share* out;
     
@@ -191,7 +192,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         memset(index_share, NULL, blocksize/8);
         memcpy(index_share, node+3, 8); // indeed, node[3]'s length is 8 bytes 
         
-        lowmc_circuit_shared_input(role, nvals, crypt, sharing, party, sharings, circ, &param, extend_client_key, index_share, lowmc_share, CLIENT);
+        lowmc_circuit_shared_input(role, 1, crypt, sharing, party, sharings, circ, &param, extend_client_key, index_share, lowmc_share, CLIENT);
         party->Reset();
         
         mpz_xor_mask(lowmc_share, blocksize, sharedAttri); // now sharedAttri is decrypted and shared between parties
@@ -239,29 +240,12 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         //that is t >= x[i], if true, go left, else, go right
         s_a = circ->PutSharedINGate(node[0], bitlen);
         s_b = circ->PutSharedINGate(attri, bitlen);
+        s_cmp = circ->PutGTGate(s_a, s_b);
 
-        out = circ->PutGTGate(s_a, s_b);
-        out = circ->PutSharedOUTGate(out);
-
-    #ifdef DTREE_DEBUG
-        cout << "\n**Running Comparison subprotocol..." << endl;
-    #endif 
-        party->ExecCircuit();
-        //output will be the shares of 0/1
-        uint32_t comBit = out->get_clear_value<uint32_t>();
-    #ifdef DTREE_DEBUG    
-        cout << (role == SERVER?"server: ":"client: ") << comBit << endl; // here output the shared value.
-    #endif
-        // std::cout << "c_out is " << c_out << ", Circuit Result:\t" << (c_out ? ALICE : BOB) << std::endl;
-        party->Reset();
-
-        //-----------Multiplexer by Mpc----------------
-        share* sel;
         s_a = circ->PutSharedINGate(node[1], bitlen);
         s_b = circ->PutSharedINGate(node[2], bitlen);
-        sel = circ->PutSharedINGate(comBit, 32);
-        //if sel = 1, s_a will be returned, otherwise, s_b is returned.
-        out = circ->PutMUXGate(s_a, s_b, sel);
+        //if s_cmp  = 1, s_a will be returned, otherwise, s_b is returned.
+        out = circ->PutMUXGate(s_a, s_b, s_cmp);
         out = circ->PutSharedOUTGate(out);
     #ifdef DTREE_DEBUG
         cout << "\n**Running Multiplexer subprotocol..." << endl;
@@ -269,8 +253,6 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         party->ExecCircuit();
         //output will be the shares of the index of next node
         uint64_t next = out->get_clear_value<uint64_t>();
-        //cout << (role == SERVER?"server: ":"client: ") << next << endl; // here output the shared value.
-        // std::cout << "c_out is " << c_out << ", Circuit Result:\t" << (c_out ? ALICE : BOB) << std::endl;
         party->Reset();
 
 
@@ -298,14 +280,43 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
 
         //-----------Reading one of a tree node according to offset out_delta in
         //local----------------
+    #if DTREE_ENCRYPTED_BY_LOWMC
+        uint16_t n_simd_blocks = ceil_divide(5 * 64, blocksize); 
+        mpz_class blocks_shares[n_simd_blocks] = {0};
+
+        for(int i = 0; i < totalNum; i++) {
+            for (int j = 0; j < n_simd_blocks; j++) {
+                blocks_shares[j] ^= (*(encryptedTree[(i+out_delta)%totalNum].plain.data() + j) * zeroOrOneDt[i]); 
+            }
+        }
+
+    #else
         mpz_class share1 = 0, share2 = 0, share3 = 0;
         for(int i = 0; i < totalNum; i++){
             share1 = (*(encryptedTree[(i+out_delta)%totalNum].plain.data()) * zeroOrOneDt[i]) ^ share1;
             share2 = (*(encryptedTree[(i+out_delta)%totalNum].plain.data() + 1) * zeroOrOneDt[i]) ^ share2;
             share3 = (*(encryptedTree[(i+out_delta)%totalNum].plain.data() + 2) * zeroOrOneDt[i]) ^ share3;
         }
+    #endif 
 
-    // #ifdef DTREE_DEBUG//AES by MPC.
+    #if DTREE_ENCRYPTED_BY_LOWMC
+        // use two-party lowmc for decryption 
+        
+        BYTE simd_inputs[n_simd_blocks * blocksize / 8], simd_outputs[n_simd_blocks * blocksize / 8];
+
+        uint64_t simd_next_index[n_simd_blocks];
+        for (uint64_t i = 0 ; i < n_simd_blocks; i++) {
+            // set simd_next as [ next<<3+0, next<<3+1, next<<3+2,... ]
+            simd_next_index[i] = role == SERVER ? next << 3 + i : next << 3;  
+            memcpy(simd_inputs + i*(blocksize/8), simd_next_index + i, sizeof(uint64_t));
+        }
+
+        lowmc_circuit_shared_input(role, n_simd_blocks, crypt, sharing, party, sharings, circ, &param, extend_server_key, simd_inputs, simd_outputs, SERVER);
+
+        for (uint64_t i = 0 ; i < n_simd_blocks; i++) {
+            mpz_xor_mask(simd_outputs + i * blocksize / 8, blocksize, blocks_shares[i]); 
+        }
+    #else 
         BYTE nodeShared1[16];
         BYTE nodeShared2[16];
         BYTE nodeShared3[16];
@@ -318,7 +329,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         aes_xor_class_plain(nodeShared1, share1);// server and client do xor locally
         aes_xor_class_plain(nodeShared2, share2);// server and client do xor locally
         aes_xor_class_plain(nodeShared3, share3);// server and client do xor locally
-    // #endif    
+    #endif    
 
     #ifdef DTREE_DEBUG
         //----------reveal next index of tree node for AES(should be removed in the future)-----------
@@ -354,10 +365,16 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         mpz_class dt3("293998737720940441927202041852477233338", 10);
         cout << "shared share1 is " << (ct3 ^ dt3) << endl;
     #endif 
+
+    #if DTREE_ENCRYPTED_BY_LOWMC
+        //parse lowmc blocks
+        deconcatenate(blocks_shares, n_simd_blocks, node);
+    #else 
         //we deconcatenate 128bits to two 64bits. From this, we can get shares of next node on plaintext
         deconcatenate(share1, node[0], node[1]);
         deconcatenate(share2, node[2], node[3]);
         deconcatenate(share3, node[4]);
+    #endif
 
     #ifdef DTREE_DEBUG
         out = circ->PutSharedINGate(node[0], bitlen);
