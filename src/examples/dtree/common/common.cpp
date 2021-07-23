@@ -90,6 +90,7 @@ void mpz_xor_mask(BYTE *mask, uint16_t mask_len, mpz_class& plain) {
     /*
         `mask`: the mask to be xored with `plain` 
         `plain`: the mpz_class value needs to be xored, for this function |`plain`| == |mask|
+        
         NOTE: mask is encoded as little-end 
     */
     mpz_class tmp;

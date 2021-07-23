@@ -118,10 +118,9 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
     share* s_c;
 	share* out;
     
-    #if DTREE_ENCRYPTED_BY_LOWMC 
+    #if DTREE_ENCRYPTED_BY_LOWMC
         // load lowmc parametres before used
         // FIXME: numofboxes, keysize, blocksize, keysize, rounds are defined in LowMC.h
-
         LowMCParams param = {numofboxes, keysize, blocksize, keysize == 80 ? 64 : (uint32_t) 128, rounds};
         load_lowmc_state(&param);
 
@@ -174,7 +173,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         // mpz_class b("234615298901844452662224218719500917163", 10);
         // cout << "shared encrypted atrribute value is " << (a ^ b) << endl;
     #endif
-
+    //#if DTREE_DEBUG
         //----------reveal next index of attri for AES(should be removed in the future)-----------
         std::cout << ("before, node[3]: ") << node[3] << endl; // here output the value.
         out = circ->PutSharedINGate(node[3], bitlen);
@@ -185,18 +184,17 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         party->Reset();
         std::cout << ("after, node[3]: ") << node[3] << endl; 
         std::cout << (role == SERVER?"server: ":"client: ") << nextAttriInd << endl; // here output the value.
-
+    //#endif 
     #if DTREE_ENCRYPTED_BY_LOWMC
         // do two-party lowmc evaluation
-
-        BYTE index_share[blocksize/8], lowmc_share[blocksize/8];
-        memcpy(index_share, &nextAttriInd, blocksize/8);
+        BYTE index_share[8], lowmc_share[blocksize/8];
+        memset(index_share, NULL, blocksize/8);
+        memcpy(index_share, node+3, 8); // indeed, node[3]'s length is 8 bytes 
+        
         lowmc_circuit_shared_input(role, nvals, crypt, sharing, party, sharings, circ, &param, extend_client_key, index_share, lowmc_share, CLIENT);
         party->Reset();
         
-
-        
-        //mpz_xor_mask()
+        mpz_xor_mask(lowmc_share, blocksize, sharedAttri); // now sharedAttri is decrypted and shared between parties
     #else
         BYTE indShared[16];
         aes_circuit(role, nvals, sharing,  party, crypt, sharings, circ, node[3], indShared, keyc4, verbose, use_vec_ands, expand_in_sfe, client_only);
@@ -229,11 +227,13 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         cout << "shared atrribute value from " << (role == SERVER?"server: ":"client: ") << " is " << sharedAttri << endl;
     #endif
 
-
+    uint64_t attri;
+    #if DTREE_ENCRYPTED_BY_LOWMC     
+        attri = mpz2uint64(sharedAttri); 
+    #else
         //we deconcatenate 128bits to 64bits
-        uint64_t attri;
         deconcatenate(sharedAttri, attri);
-
+    #endif 
         //-----------Comparison a threshold and an attribute value by Mpc----------------
         //should be x[i] <= t, if true, go left, else, go right
         //that is t >= x[i], if true, go left, else, go right
@@ -242,6 +242,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
 
         out = circ->PutGTGate(s_a, s_b);
         out = circ->PutSharedOUTGate(out);
+
     #ifdef DTREE_DEBUG
         cout << "\n**Running Comparison subprotocol..." << endl;
     #endif 
