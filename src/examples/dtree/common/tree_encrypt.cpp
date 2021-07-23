@@ -97,7 +97,7 @@ std::vector<node_tuple_mz> return_tree(DecTree& tree, uint64_t(&array)[5]){
     //print_vector_ss_tuple_mz(treeV);
 
     std::vector<node_tuple_mz> encryptedTreeV;//加密后的密文
-    concatenate(treeV, 128, encryptedTreeV); //联接后一个block为128bits,为后面aes加密做准备
+    concatenate(treeV, encryptedTreeV); //联接后一个block为128bits,为后面aes加密做准备 NOTE: DO NOT USE concatenate(treeV, 128, encryptedTreeV) FOR AES VERSION
 #ifdef DTREE_DEBUG
     printf("************treeV**********************\n");
     print_vector_ss_tuple_mz(treeV);
