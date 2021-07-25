@@ -37,6 +37,7 @@ BYTE lowmc_client_key[] = {0x04, 0x03, 0x0, 0x0,
         0x0, 0x0, 0x0, 0x0
     };
 
+
 void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl seclvl, uint32_t bitlen, uint32_t nthreads, e_mt_gen_alg mt_alg, e_sharing sharing, string filename, uint64_t featureDim, uint64_t r, uint32_t depthHide, uint32_t nvals, [[maybe_unused]] bool verbose, bool use_vec_ands, bool expand_in_sfe, bool client_only){
 	srand((unsigned int)time(NULL)); // real random
     DecTree tree;
@@ -56,7 +57,8 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
 
 
 // you can choose to encrypt the decision tree either by aes or lowmc
-#if DTREE_ENCRYPTED_BY_LOWMC 
+
+#if DTREE_ENCRYPTED_BY_LOWMC
 	vector<node_tuple_mz> encryptedTree = encrypt_tree(tree, node); // encrypt tree using lowMC
 #else 
     vector<node_tuple_mz> encryptedTree = return_tree(tree, node);  // encrypt tree using AES
@@ -149,15 +151,13 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
 
         out = circ->PutXORGate(s_a, s_b);
         out = circ->PutOUTGate(out, ALL);//public delta
-    #ifdef DTREE_DEBUG
-        cout << "\n**Running delta computing subprotocol..." << endl;
-    #endif
+
         party->ExecCircuit();
 
         uint64_t delta = out->get_clear_value<uint64_t>();
-    #ifdef DTREE_DEBUG
+    //#ifdef DTREE_DEBUG
         cout << (role == SERVER?"server: ":"client: ") << delta << endl; // here output the shared value.
-    #endif
+    //#endif
         party->Reset();
         
 
@@ -194,8 +194,9 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         
         lowmc_circuit_shared_input(role, 1, crypt, sharing, party, sharings, circ, &param, extend_client_key, index_share, lowmc_share, CLIENT);
         party->Reset();
-        
+        //std::cout << "lowmc" << std::endl; 
         mpz_xor_mask(lowmc_share, blocksize, sharedAttri); // now sharedAttri is decrypted and shared between parties
+        // std::cout << "lowmc" << std::endl; 
     #else
         BYTE indShared[16];
         aes_circuit(role, nvals, sharing,  party, crypt, sharings, circ, node[3], indShared, keyc4, verbose, use_vec_ands, expand_in_sfe, client_only);
@@ -229,8 +230,11 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
     #endif
 
     uint64_t attri;
-    #if DTREE_ENCRYPTED_BY_LOWMC     
-        attri = mpz2uint64(sharedAttri); 
+    #if DTREE_ENCRYPTED_BY_LOWMC 
+    std::cout << "lowmc1" << std::endl;     
+        attri = mpz2uint64(sharedAttri % pow(2, 64) ); 
+    std::cout << "lowmc2" << std::endl;     
+
     #else
         //we deconcatenate 128bits to 64bits
         deconcatenate(sharedAttri, attri);
@@ -281,6 +285,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         //-----------Reading one of a tree node according to offset out_delta in
         //local----------------
     #if DTREE_ENCRYPTED_BY_LOWMC
+    std::cout << "lowmc2" << std::endl; 
         uint16_t n_simd_blocks = ceil_divide(5 * 64, blocksize); 
         mpz_class blocks_shares[n_simd_blocks] = {0};
 
@@ -316,6 +321,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         for (uint64_t i = 0 ; i < n_simd_blocks; i++) {
             mpz_xor_mask(simd_outputs + i * blocksize / 8, blocksize, blocks_shares[i]); 
         }
+         party->Reset();
     #else 
         BYTE nodeShared1[16];
         BYTE nodeShared2[16];
@@ -425,7 +431,8 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         cout << "node4 in " << (role == SERVER?"server: ":"client: ") << node4 << endl;
         party->Reset();
     #endif 
-    }
+    } //end for
+
 #ifdef DTREE_DEBUG
     cout << "------------Shared classification result is " << node[4] << endl;
 #endif 

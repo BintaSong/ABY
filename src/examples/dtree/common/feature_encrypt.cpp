@@ -9,7 +9,7 @@ BYTE key4[] = { 0x21, 0xE6, 0xAE, 0x3B,
         0x71, 0x46, 0x0D, 0x5A
     };
 
-keyblock lowmc_feature_key = 0x0102;
+keyblock lowmc_feature_key = 0x0304;
 
 //real feature although genarated in random...
 void ss_real_feature(int num){
@@ -100,7 +100,9 @@ node_tuple_mz encrypt_fixed_feature(uint64_t featureDim, uint64_t featureMax){
     LowMC lowmc(lowmc_feature_key); 
 
     for(uint64_t i = 0; i < featureDim; i++){
+        std::cout<< i << std::endl;
         block mask = lowmc.encrypt(i); 
+        
         mpz_xor_mask(mask, blocksize, *(feature.plain.data() + i));
     }
 #ifdef DTREE_DEBUG

@@ -6,7 +6,7 @@
 #include <string>
 #include <iostream>
 
-#define LOWMC_PLAIN_DEBUG 1
+#define LOWMC_PLAIN_DEBUG 0
 
 const unsigned numofboxes = 49;    // Number of Sboxes
 const unsigned blocksize = 256;   // Block size in bits

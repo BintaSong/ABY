@@ -19,7 +19,7 @@ BYTE key3[] = { 0x61, 0xD6, 0xAE, 0x8B,
         0x73, 0x76, 0x08, 0x2A
     };
 
-keyblock lowmc_tree_key = 0x0102;
+keyblock lowmc_tree_key = 0x0304;
 
 
 void ss_real_tree(DecTree& tree){
@@ -151,8 +151,10 @@ std::vector<node_tuple_mz> encrypt_tree(const DecTree& tree, uint64_t *root_node
     // encrypt tree by lowmc block cipher
     LowMC lowmc(lowmc_tree_key); 
 
+    uint16_t n_blocks = ceil_divide(64 * 5, blocksize); 
     for(uint64_t i = 0; i < tree.num_dec_nodes + tree.num_of_leaves; i++) {
-        for (uint64_t j = 0; j < blocksize; j++) {
+        for (uint64_t j = 0; j < n_blocks; j++) {
+            std::cout<< i << " -----" << j << std::endl;
             block mask, msg(i<<3+j); // FIXME: j here is for subindex, j <= 5 for our case, so i << 3 should be sufficient for i||j 
             mask = lowmc.encrypt(msg);
             mpz_xor_mask(mask, blocksize, *(encryptedTreeV[i].plain.data()+j));
@@ -316,13 +318,13 @@ void concatenate(std::vector<node_tuple_mz>& treeV, std::vector<node_tuple_mz>& 
     }
 }
 
-void concatenate(std::vector<node_tuple_mz>& treeV, const uint16_t block_size, std::vector<node_tuple_mz>& encryptedTreeV){
+void concatenate(std::vector<node_tuple_mz>& treeV, const uint16_t block_bitsize, std::vector<node_tuple_mz>& encryptedTreeV){
     // FIXME: so far block_size needs to be multiple of 64 bits
 
     uint16_t node_elements_num = treeV.begin()->plain.size(); // the number of elements in a tree node
-    uint16_t block_elements_num = block_size / 64; // the number of elements in a block
+    uint16_t block_elements_num = block_bitsize / 64; // the number of elements in a block
     //uint16_t node_blocks_num = (uint16_t) ((node_elements_num * 64 + block_size - 1) / block_size); // number of blocks for a tree node 
-    uint16_t node_blocks_num = ceil( ((double) node_elements_num * 64 / block_size) );
+    uint16_t node_blocks_num = ceil( ((double) node_elements_num * 64 / block_bitsize) );
     matrix_z blocks(1, node_blocks_num); 
 
     for(std::vector<node_tuple_mz>::iterator it = treeV.begin(); it < treeV.end(); it++){
