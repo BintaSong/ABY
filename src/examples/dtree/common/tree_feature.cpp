@@ -131,6 +131,10 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
 
         CBitVector raw_server_key(keysize), raw_client_key(keysize), extend_server_key(exp_key_bitlen), extend_client_key(exp_key_bitlen);
 
+        // uint64_t key;
+        // memcpy(&key, lowmc_client_key, sizeof(uint64_t));
+        // std::cout << "the key: " << key << std::endl; 
+
         if(role == SERVER) {
             raw_server_key.SetBytes(lowmc_server_key, 0, keysize/8);
             keyschedule(raw_server_key, extend_server_key, &param);
@@ -156,7 +160,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
 
         uint64_t delta = out->get_clear_value<uint64_t>();
     //#ifdef DTREE_DEBUG
-        cout << (role == SERVER?"server: ":"client: ") << delta << endl; // here output the shared value.
+        cout << (role == SERVER?"server feature delta: ":"client feature delta: ") << (int) delta << endl; // here output the shared value.
     //#endif
         party->Reset();
         
@@ -167,6 +171,8 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
             sharedAttri = (*(encryptedFeature.plain.data() +(i^delta)) * zeroOrOneFt[i]) ^ sharedAttri;
             //cout << sharedAttri << endl;
         }
+        std::cout << " Attribute share is: " << sharedAttri.get_str(2) << std::endl;
+
     #ifdef DTREE_DEBUG
         cout << "shared atrribute value from " << (role == SERVER?"server: ":"client: ") << " is " << sharedAttri << endl;
         //verify the correctness of shared attribute value
@@ -174,7 +180,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         // mpz_class b("234615298901844452662224218719500917163", 10);
         // cout << "shared encrypted atrribute value is " << (a ^ b) << endl;
     #endif
-    //#if DTREE_DEBUG
+    #if DTREE_DEBUG
         //----------reveal next index of attri for AES(should be removed in the future)-----------
         std::cout << ("before, node[3]: ") << node[3] << endl; // here output the value.
         out = circ->PutSharedINGate(node[3], bitlen);
@@ -184,19 +190,54 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         uint64_t nextAttriInd = out->get_clear_value<uint64_t>();
         party->Reset();
         std::cout << ("after, node[3]: ") << node[3] << endl; 
-        std::cout << (role == SERVER?"server: ":"client: ") << nextAttriInd << endl; // here output the value.
-    //#endif 
+        std::cout << (role == SERVER?"server feature id: ":"client feature id: ") << nextAttriInd << endl; // here output the value.
+    #endif
     #if DTREE_ENCRYPTED_BY_LOWMC
         // do two-party lowmc evaluation
         BYTE index_share[8], lowmc_share[blocksize/8];
-        memset(index_share, NULL, blocksize/8);
+        memset(index_share, 0, 8);
         memcpy(index_share, node+3, 8); // indeed, node[3]'s length is 8 bytes 
         
+        std::cout << "index_share: " << node[3] << std::endl;
+        // if (i == 0) {
+        //     for (int i = 0 ; i < 8; i++) {
+        //         for (int j = 0; j < 8; j++) {
+        //             if (index_share[i] & 1 << j) std::cout<<1;
+        //             else std::cout << 0;
+        //         }
+        //     }
+        //     std::cout<<std::endl;
+
+        //     for (int i = 0 ; i < 8; i++) {
+        //         for (int j = 0; j < 8; j++) {
+        //             if (node[3] & (uint64_t)1 << (8*i+j)) std::cout<<1;
+        //             else std::cout << 0;
+        //         }
+        //     }
+        //     std::cout<<std::endl;
+        // }
+
         lowmc_circuit_shared_input(role, 1, crypt, sharing, party, sharings, circ, &param, extend_client_key, index_share, lowmc_share, CLIENT);
         party->Reset();
-        //std::cout << "lowmc" << std::endl; 
+
+        std::cout << "lowmc extend key: "<< std::endl;
+        for (int j = 0; j < keysize; j++) {
+            std::cout << std::to_string( extend_client_key.GetBit(j));
+        }
+        std::cout <<std::endl;
+
+        std::cout << "lowmc_share: "<< std::endl;
+        for (int j = 0; j < ceil_divide(blocksize, 8); j++) {
+            std::cout << std::bitset<8>(lowmc_share[j]);
+        }
+        std::cout <<std::endl;
+
+        //std::cout << "lowmc" << std::endl;
         mpz_xor_mask(lowmc_share, blocksize, sharedAttri); // now sharedAttri is decrypted and shared between parties
-        // std::cout << "lowmc" << std::endl; 
+
+
+
+        //std::cout << "lowmc" << std::endl;
     #else
         BYTE indShared[16];
         aes_circuit(role, nvals, sharing,  party, crypt, sharings, circ, node[3], indShared, keyc4, verbose, use_vec_ands, expand_in_sfe, client_only);
@@ -312,7 +353,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         uint64_t simd_next_index[n_simd_blocks];
         for (uint64_t i = 0 ; i < n_simd_blocks; i++) {
             // set simd_next as [ next<<3+0, next<<3+1, next<<3+2,... ]
-            simd_next_index[i] = role == SERVER ? next << 3 + i : next << 3;  
+            simd_next_index[i] = role == SERVER ? next << 3 + i : next << 3;
             memcpy(simd_inputs + i*(blocksize/8), simd_next_index + i, sizeof(uint64_t));
         }
 
@@ -321,7 +362,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         for (uint64_t i = 0 ; i < n_simd_blocks; i++) {
             mpz_xor_mask(simd_outputs + i * blocksize / 8, blocksize, blocks_shares[i]); 
         }
-         party->Reset();
+        party->Reset();
     #else 
         BYTE nodeShared1[16];
         BYTE nodeShared2[16];

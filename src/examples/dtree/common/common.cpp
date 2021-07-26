@@ -65,16 +65,16 @@ void aes_xor_class_plain(BYTE in[16], mpz_class& plain){
 #endif
 }
 
-void mpz_xor_mask(block mask, uint16_t mask_len, mpz_class& plain){
+void mpz_xor_mask(block mask, uint16_t mask_bitlen, mpz_class& plain){
     /*
         `mask`: the mask to be xored with `plain` 
         `plain`: the mpz_class value needs to be xored, for this function |`plain`| == |mask|
     */
 
-    assert(mask.size() == mask_len); 
+    assert(mask.size() == mask_bitlen); 
 
     mpz_class tmp;
-    for (uint16_t i = 0; i < mask_len; i++) {
+    for (uint16_t i = 0; i < mask_bitlen; i++) {
         if (mask[i]) {
             mpz_setbit(tmp.get_mpz_t(), i);
         }

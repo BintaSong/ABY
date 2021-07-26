@@ -97,14 +97,18 @@ node_tuple_mz encrypt_fixed_feature(uint64_t featureDim, uint64_t featureMax){
     print_ss_tuple_mz(feature);
 #endif 
 
-    LowMC lowmc(lowmc_feature_key); 
+    LowMC lowmc(lowmc_feature_key);
 
     for(uint64_t i = 0; i < featureDim; i++){
         std::cout<< i << std::endl;
         block mask = lowmc.encrypt(i); 
         
         mpz_xor_mask(mask, blocksize, *(feature.plain.data() + i));
+        std::cout << "feature " << i << ", " << (*(feature.plain.data() + i)).get_str(2) << std::endl;
     }
+    // gmp_printf("After encryption is %Zd\n\n", *(feature.plain.data() + 6));
+    
+
 #ifdef DTREE_DEBUG
     printf("************encryptedfeature**********************\n");
     print_ss_tuple_mz(feature);
@@ -116,7 +120,7 @@ node_tuple_mz encrypt_fixed_feature(uint64_t featureDim, uint64_t featureMax){
 void print_ss_tuple_mz(node_tuple_mz& tuple){
   for (int i = 0, size = tuple.plain.size(); i < size; ++i) {
     std::cout << (*(tuple.plain.data() + i)).get_str(2) << std::endl;
-    gmp_printf("plain%d is %Zd\n", i, *(tuple.plain.data() + i));
+    gmp_printf("plain %d is %Zd\n\n", i, *(tuple.plain.data() + i));
   }
 }
 

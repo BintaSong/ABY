@@ -157,6 +157,12 @@ void test_lowmc_circuit_shared_input(e_role role, uint32_t nvals, crypto* crypt,
 	if (role == key_inputter) {
 		raw_key.SetBytes(key, 0, para->keysize/8); 
 		keyschedule(raw_key, extend_key, para);
+
+		// std::cout << "lowmc extend key: "<< std::endl;
+        // for (int j = 0; j < para->keysize; j++) {
+        //     std::cout << std::to_string( extend_key.GetBit(j));
+        // }
+        // std::cout <<std::endl;
 	}
 
 	lowmc_circuit_shared_input(role, nvals, crypt, sharing, party, sharings, circ, para, extend_key, inputShare, outputShare, key_inputter); 
