@@ -139,7 +139,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
             raw_server_key.SetBytes(lowmc_server_key, 0, keysize/8);
             keyschedule(raw_server_key, extend_server_key, &param);
 	    }
-        else {
+        else if(role == CLIENT) {
             raw_client_key.SetBytes(lowmc_client_key, 0, keysize/8);
             keyschedule(raw_client_key, extend_client_key, &param);
         }
@@ -194,47 +194,44 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
     #endif
     #if DTREE_ENCRYPTED_BY_LOWMC
         // do two-party lowmc evaluation
-        BYTE index_share[8], lowmc_share[blocksize/8];
-        memset(index_share, 0, 8);
-        memcpy(index_share, node+3, 8); // indeed, node[3]'s length is 8 bytes 
+        BYTE index_share[blocksize/8], lowmc_share[blocksize/8];
+        memset(index_share, 0, blocksize/8);
+        memcpy(index_share, node+3, sizeof(uint64_t)); // indeed, node[3]'s length is 8 bytes 
         
-        std::cout << "index_share: " << node[3] << std::endl;
-        // if (i == 0) {
-        //     for (int i = 0 ; i < 8; i++) {
-        //         for (int j = 0; j < 8; j++) {
-        //             if (index_share[i] & 1 << j) std::cout<<1;
-        //             else std::cout << 0;
-        //         }
-        //     }
-        //     std::cout<<std::endl;
+        std::cout << "\nindex_share: " << node[3] << std::endl;
+        if (i == 0) {
+            for (int i = 0 ; i < 8; i++) {
+               std::cout << std::bitset<8>(index_share[i]);
+            }
+            std::cout<<std::endl;
 
-        //     for (int i = 0 ; i < 8; i++) {
-        //         for (int j = 0; j < 8; j++) {
-        //             if (node[3] & (uint64_t)1 << (8*i+j)) std::cout<<1;
-        //             else std::cout << 0;
-        //         }
-        //     }
-        //     std::cout<<std::endl;
-        // }
-
-        lowmc_circuit_shared_input(role, 1, crypt, sharing, party, sharings, circ, &param, extend_client_key, index_share, lowmc_share, CLIENT);
-        party->Reset();
-
-        std::cout << "lowmc extend key: "<< std::endl;
-        for (int j = 0; j < keysize; j++) {
-            std::cout << std::to_string( extend_client_key.GetBit(j));
+            // for (int i = 0 ; i < 8; i++) {
+            //     for (int j = 0; j < 8; j++) {
+            //         if (node[3] & (uint64_t)1 << (8*i+j)) std::cout<<1;
+            //         else std::cout << 0;
+            //     }
+            // }
+            // std::cout<<std::endl;
         }
-        std::cout <<std::endl;
+//load_lowmc_state(&param);
+        lowmc_circuit_shared_input(role, 1, crypt, sharing, party, sharings, circ, &param, extend_client_key, index_share, lowmc_share, CLIENT);
+       
 
-        std::cout << "lowmc_share: "<< std::endl;
-        for (int j = 0; j < ceil_divide(blocksize, 8); j++) {
+        // std::cout << "\nlowmc extend key: "<< std::endl;
+        // for (int j = 0; j < keysize; j++) {
+        //     std::cout << std::to_string( extend_client_key.GetBit(j));
+        // }
+        // std::cout <<std::endl;
+
+        std::cout << "\nlowmc_share: "<< std::endl;
+        for (int j = ceil_divide(blocksize, 8) - 1; j >= 0; j--) {
             std::cout << std::bitset<8>(lowmc_share[j]);
         }
         std::cout <<std::endl;
 
         //std::cout << "lowmc" << std::endl;
         mpz_xor_mask(lowmc_share, blocksize, sharedAttri); // now sharedAttri is decrypted and shared between parties
-
+        party->Reset();
 
 
         //std::cout << "lowmc" << std::endl;
@@ -273,7 +270,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
     uint64_t attri;
     #if DTREE_ENCRYPTED_BY_LOWMC 
     std::cout << "lowmc1" << std::endl;     
-        attri = mpz2uint64(sharedAttri % pow(2, 64) ); 
+        attri = mpz2uint64(sharedAttri); 
     std::cout << "lowmc2" << std::endl;     
 
     #else
