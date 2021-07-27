@@ -156,6 +156,13 @@ uint64_t mpz2uint64(mpz_class z)
     return result;
 }
 
+uint64_t mpz2uint64_lowmc(mpz_class z)
+{
+    uint64_t result = 0;
+    mpz_export(&result, 0, -1, 1, 1, 0, z.get_mpz_t());
+    return result;
+}
+
 void FSSFeatureRead(e_role role, string file1, string file2, vector<int>& zeroOrOne, int num, int dim){
     //-----------Read Evaluation Result of FSS----------------
     for(uint64_t i = 0; i < num; i++){

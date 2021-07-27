@@ -192,8 +192,8 @@ void lowmc_circuit_shared_input(e_role role, uint32_t nvals, crypto* crypt, e_sh
 
 	s_ciphertext = BuildLowMCCircuit(role, s_in, s_key, (BooleanCircuit*) circ, para, zero_gate, crypt);
 
-	//s_ciphertext = circ->PutSharedOUTGate(s_ciphertext);
-	s_ciphertext = circ->PutOUTGate(s_ciphertext, ALL);
+	s_ciphertext = circ->PutSharedOUTGate(s_ciphertext);
+	//s_ciphertext = circ->PutOUTGate(s_ciphertext, ALL);
 	
 	party->ExecCircuit();
 

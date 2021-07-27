@@ -10,6 +10,8 @@
 //     LowMC functions     //
 /////////////////////////////
 
+std::bitset<80> state; //Keeps the 80 bit LSFR state
+
 block LowMC::encrypt (const block message) {
 #if LOWMC_PLAIN_DEBUG 
     std::cout<< "message: " << message.size() <<std::endl; 
@@ -348,7 +350,7 @@ void LowMC::instantiate_LowMC () {
         } while ( rank_of_Matrix_Key(mat) < std::min(blocksize, keysize) );
         KeyMatrices.push_back(mat);
     }
-    
+    state.reset(); // NOTE: reset state to all zero
     return;
 }
 
@@ -496,7 +498,7 @@ keyblock LowMC::getrandkeyblock () {
 // Is initialized with the all 1s state
 // The first 160 bits are thrown away
 bool LowMC::getrandbit () {
-    static std::bitset<80> state; //Keeps the 80 bit LSFR state
+    //static std::bitset<80> state; //Keeps the 80 bit LSFR state
     bool tmp = 0;
     //If state has not been initialized yet
     if (state.none ()) {

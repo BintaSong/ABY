@@ -231,6 +231,8 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
 
         //std::cout << "lowmc" << std::endl;
         mpz_xor_mask(lowmc_share, blocksize, sharedAttri); // now sharedAttri is decrypted and shared between parties
+        std::cout << " Decrypted attribute share is: " << sharedAttri.get_str(2) << std::endl;
+
         party->Reset();
 
 
@@ -269,9 +271,20 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
 
     uint64_t attri;
     #if DTREE_ENCRYPTED_BY_LOWMC 
-    std::cout << "lowmc1" << std::endl;     
-        attri = mpz2uint64(sharedAttri); 
-    std::cout << "lowmc2" << std::endl;     
+    // std::cout << "lowmc1" << std::endl;    
+    sharedAttri = sharedAttri % pow(2, 64); 
+    std::cout << " Decrypted attribute mod 2^64 share is: " << sharedAttri.get_str(2) << std::endl; 
+        attri = mpz2uint64(sharedAttri);
+
+
+        BYTE tmp[8];
+        memcpy(tmp, &attri, 8); 
+        std::cout << "\nint attribute: "<< std::endl;
+        for (int j = 8 - 1; j >= 0; j--) {
+            std::cout << std::bitset<8>(tmp[j]);
+        }
+        std::cout <<std::endl;
+    std::cout << "end attri" << std::endl;     
 
     #else
         //we deconcatenate 128bits to 64bits
@@ -323,7 +336,6 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         //-----------Reading one of a tree node according to offset out_delta in
         //local----------------
     #if DTREE_ENCRYPTED_BY_LOWMC
-    std::cout << "lowmc2" << std::endl; 
         uint16_t n_simd_blocks = ceil_divide(5 * 64, blocksize); 
         mpz_class blocks_shares[n_simd_blocks] = {0};
 
@@ -344,21 +356,41 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
 
     #if DTREE_ENCRYPTED_BY_LOWMC
         // use two-party lowmc for decryption 
-        
+        std::cout << "\nbegin lowmc tree shared decryption" << std::endl;
         BYTE simd_inputs[n_simd_blocks * blocksize / 8], simd_outputs[n_simd_blocks * blocksize / 8];
+        memset(simd_inputs, 0, n_simd_blocks * blocksize / 8); //FIXME: must do this
+        memset(simd_outputs, 0, n_simd_blocks * blocksize / 8);
 
         uint64_t simd_next_index[n_simd_blocks];
+
+        std::cout << "\nnext : " << std::bitset<64>(next) << std::endl;
         for (uint64_t i = 0 ; i < n_simd_blocks; i++) {
             // set simd_next as [ next<<3+0, next<<3+1, next<<3+2,... ]
-            simd_next_index[i] = role == SERVER ? next << 3 + i : next << 3;
+            simd_next_index[i] = role == SERVER ? (next << 3) + i : next << 3; // FIXME: next << 3 + i <==> next << (3+i) !!!
             memcpy(simd_inputs + i*(blocksize/8), simd_next_index + i, sizeof(uint64_t));
+            
+            std::cout << "\nsimd_inputs: "<< i << std::endl;
+
+            //for (int i = 0; i < n_simd_blocks; i++)
+                //for (int j = blocksize / 8 - 1; j >= 0; j--) {
+                    std::cout << std::bitset<64>(simd_next_index[i]) << std::endl;
+                //}
+            //std::cout <<std::endl;
         }
 
         lowmc_circuit_shared_input(role, n_simd_blocks, crypt, sharing, party, sharings, circ, &param, extend_server_key, simd_inputs, simd_outputs, SERVER);
 
+        std::cout << "\nsimd_outputs [0]: "<< std::endl;
+        for (int j = ceil_divide(blocksize, 8) - 1; j >= 0; j--) {
+            std::cout << std::bitset<8>(simd_outputs[j]);
+        }
+        std::cout <<std::endl;
+
         for (uint64_t i = 0 ; i < n_simd_blocks; i++) {
             mpz_xor_mask(simd_outputs + i * blocksize / 8, blocksize, blocks_shares[i]); 
+            std::cout << " Decrypted block share : "<< i << " : " << blocks_shares[i].get_str(2) << std::endl; 
         }
+        std::cout << "fuck" <<std::endl;
         party->Reset();
     #else 
         BYTE nodeShared1[16];
@@ -419,6 +451,8 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         deconcatenate(share2, node[2], node[3]);
         deconcatenate(share3, node[4]);
     #endif
+
+    // if (i == 1) break ;
 
     #ifdef DTREE_DEBUG
         out = circ->PutSharedINGate(node[0], bitlen);

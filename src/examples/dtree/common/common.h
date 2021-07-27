@@ -29,6 +29,7 @@ void deconcatenate(mpz_class concate_result, mpz_class& de_concate_result1);
 void deconcatenate(mpz_class concate_result, uint64_t& de_concate_result1);
 void deconcatenate(mpz_class concate_result, uint64_t& de_concate_result0, uint64_t& de_concate_result1);
 uint64_t mpz2uint64(mpz_class z);
+uint64_t mpz2uint64_lowmc(mpz_class z);
 void FSSFeatureRead(e_role role, string file1, string file2, vector<int>& zeroOrOne, int num, int dim);
 void FSSTreeRead(e_role role, string file1, string file2, vector<int>& zeroOrOne, int num);
 
