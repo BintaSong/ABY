@@ -199,11 +199,10 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         memcpy(index_share, node+3, sizeof(uint64_t)); // indeed, node[3]'s length is 8 bytes 
         
         std::cout << "\nindex_share: " << node[3] << std::endl;
-        if (i == 0) {
-            for (int i = 0 ; i < 8; i++) {
+            for (int i = 7 ; i >= 0; i--) {
                std::cout << std::bitset<8>(index_share[i]);
             }
-            std::cout<<std::endl;
+        std::cout<<std::endl;
 
             // for (int i = 0 ; i < 8; i++) {
             //     for (int j = 0; j < 8; j++) {
@@ -212,7 +211,6 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
             //     }
             // }
             // std::cout<<std::endl;
-        }
 //load_lowmc_state(&param);
         lowmc_circuit_shared_input(role, 1, crypt, sharing, party, sharings, circ, &param, extend_client_key, index_share, lowmc_share, CLIENT);
        
@@ -390,7 +388,6 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
             mpz_xor_mask(simd_outputs + i * blocksize / 8, blocksize, blocks_shares[i]); 
             std::cout << " Decrypted block share : "<< i << " : " << blocks_shares[i].get_str(2) << std::endl; 
         }
-        std::cout << "fuck" <<std::endl;
         party->Reset();
     #else 
         BYTE nodeShared1[16];

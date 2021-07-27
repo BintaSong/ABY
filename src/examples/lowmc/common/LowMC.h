@@ -8,8 +8,8 @@
 
 #define LOWMC_PLAIN_DEBUG 0
 
-const unsigned numofboxes = 49;    // Number of Sboxes
-const unsigned blocksize = 256;   // Block size in bits
+const unsigned numofboxes = 31;    // Number of Sboxes
+const unsigned blocksize = 128;   // Block size in bits
 const unsigned keysize = 80; // Key size in bits
 const unsigned rounds = 12; // Number of rounds
 
