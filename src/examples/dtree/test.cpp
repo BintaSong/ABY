@@ -104,6 +104,7 @@ int main(int argc, char** argv) {
 		get_tree_and_feature(role, (char*) address.c_str(), port, seclvl, bitlen, nthreads, mt_alg, sharing, dectree_rootdir + filename[i], ftDim[i], r1, depthHide, nvals, verbose, use_vec_ands, expand_in_sfe, client_only);// last five params are for AES
 	}
 
+
 	// LowMC cipher(1);
 	// //cipher.print_matrices();
     // block m = 0x321, c;
