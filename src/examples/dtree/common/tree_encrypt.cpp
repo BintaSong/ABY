@@ -135,7 +135,7 @@ std::vector<node_tuple_mz> encrypt_tree(const DecTree& tree, uint64_t *root_node
         *(node.plain.data() + 2) = tree.right[i];
         *(node.plain.data() + 3) = tree.map[i];
         *(node.plain.data() + 4) = tree.label[i];
-        std::cout << "i: "<< i <<", label: " << tree.label[i] <<std::endl;
+        // std::cout << "i: "<< i <<", label: " << tree.label[i] <<std::endl;
         treeV.push_back(node);
     }
 
@@ -155,11 +155,11 @@ std::vector<node_tuple_mz> encrypt_tree(const DecTree& tree, uint64_t *root_node
     uint16_t n_blocks = ceil_divide(sizeof(uint64_t) * 8 * 5, blocksize); 
     for(uint64_t i = 0; i < tree.num_dec_nodes + tree.num_of_leaves; i++) {
         for (uint64_t j = 0; j < n_blocks; j++) {
-            std::cout<< i << " -----" << j << std::endl;
+            // std::cout<< i << " -----" << j << std::endl;
             block mask, msg((i<<3)+j); // FIXME: j here is for subindex, j <= 5 for our case, so i << 3 should be sufficient for i||j 
             mask = lowmc.encrypt(msg);
-            std::cout << i << " - " << j << " tree mask " <<  mask << std::endl;
-            std::cout << i << " - " << j << " tree mask plain " <<  lowmc.decrypt(mask) << std::endl;
+            // std::cout << i << " - " << j << " tree mask " <<  mask << std::endl;
+            // std::cout << i << " - " << j << " tree mask plain " <<  lowmc.decrypt(mask) << std::endl;
             mpz_xor_mask(mask, blocksize, *(encryptedTreeV[i].plain.data()+j));
         }
     }
@@ -379,7 +379,7 @@ void deconcatenate(mpz_class blocks[], uint16_t n_blocks, uint64_t nodes[]){
             index = n_elements * i + r_position - 1 - j;
             nodes[index] = mpz2uint64(element);
 
-            std::cout << "n_blocks " << n_blocks  << ", block " << i << ", elments " << j << ", index " << index << ": " << element.get_str(2) << std::endl; 
+            // std::cout << "n_blocks " << n_blocks  << ", block " << i << ", elments " << j << ", index " << index << ": " << element.get_str(2) << std::endl; 
         }
     }
 }

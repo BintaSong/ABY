@@ -100,15 +100,15 @@ node_tuple_mz encrypt_fixed_feature(uint64_t featureDim, uint64_t featureMax){
     LowMC lowmc(lowmc_feature_key);
 
     for(uint64_t i = 0; i < featureDim; i++){
-        std::cout<< i << std::endl;
+        // std::cout<< i << std::endl;
         block mask = lowmc.encrypt(i); 
         
         mpz_xor_mask(mask, blocksize, *(feature.plain.data() + i));
-        std::cout << "mask " << i << ", " << mask << std::endl;
-        std::cout << "feature " << i << ", " << (*(feature.plain.data() + i)).get_str(2) << std::endl;
+        // std::cout << "mask " << i << ", " << mask << std::endl;
+        // std::cout << "feature " << i << ", " << (*(feature.plain.data() + i)).get_str(2) << std::endl;
 
        // block mask = lowmc.decrypt(mask); 
-        std::cout << "mask plain " <<  lowmc.decrypt(mask) << std::endl;
+        // std::cout << "mask plain " <<  lowmc.decrypt(mask) << std::endl;
     }
     // gmp_printf("After encryption is %Zd\n\n", *(feature.plain.data() + 6));
     

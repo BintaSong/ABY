@@ -192,16 +192,20 @@ void lowmc_circuit_shared_input(e_role role, uint32_t nvals, crypto* crypt, e_sh
 	//zero_gate = circ->PutConstantGate(0, nvals);
 
 	s_ciphertext = BuildLowMCCircuit(role, s_in, s_key, (BooleanCircuit*) circ, para, zero_gate, crypt);
-
+#if SHARE_LOWMC_DEBUG
+	s_in_debug = circ->PutOUTGate(s_in, ALL);
 	s_out_debug = circ->PutOUTGate(s_ciphertext, ALL);
+#endif
 	s_ciphertext = circ->PutSharedOUTGate(s_ciphertext);
 	//s_ciphertext = circ->PutOUTGate(s_ciphertext, ALL);
-	s_in_debug = circ->PutOUTGate(s_in, ALL);
+	
 	
 	
 	party->ExecCircuit();
 
 	uint8_t* output = s_ciphertext->get_clear_value_ptr();
+
+#if SHARE_LOWMC_DEBUG
 	uint8_t* out_debug = s_out_debug->get_clear_value_ptr();
 	uint8_t* in_debug = s_in_debug->get_clear_value_ptr();
 	
@@ -221,7 +225,7 @@ void lowmc_circuit_shared_input(e_role role, uint32_t nvals, crypto* crypt, e_sh
 		}
 		std::cout <<std::endl;
 	}
-    
+#endif 
 
 	// CBitVector out;
 	// out.AttachBuf(output, (uint64_t) ceil_divide(para->blocksize, 8) * nvals);
