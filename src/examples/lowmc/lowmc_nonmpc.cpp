@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
 	LowMC cipher(0x0304);
 	//cipher.print_matrices();
     // block m = 0b101010101111, c;
-    block m = 1 << 3, c;
+    block m = 0x04030200, c;
     std::cout << "Plaintext:" << std::endl;
     std::cout << m << std::endl;
 
@@ -39,6 +39,5 @@ int main(int argc, char** argv) {
     std::cout << "\nEncryption followed by decryption of plaintext:" << std::endl;
     std::cout<< m <<std::endl;
 
-	
 	return 0;
 }

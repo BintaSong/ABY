@@ -60,7 +60,7 @@ int32_t read_test_options(int32_t* argcp, char*** argvp, e_role* role, uint32_t*
 
 int main(int argc, char** argv) {
 	e_role role;
-	uint32_t bitlen = 32, nvals = 1, secparam = 128, nthreads = 1, statesize, sboxes, rounds, keysize, maxnumgates=0;
+	uint32_t bitlen = 32, nvals = 3, secparam = 128, nthreads = 1, statesize, sboxes, rounds, keysize, maxnumgates=0;
 	uint16_t port = 7766;
 	std::string address = "127.0.0.1";
 	int32_t test_op = -1;
@@ -94,14 +94,30 @@ int main(int argc, char** argv) {
 	
 	// assert(circ->GetCircuitType() == C_BOOLEAN);
 
-	BYTE test_input[param.blocksize * nvals] = {0x8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
-	                                    0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-	BYTE test_mask[param.blocksize * nvals] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
-	                                   0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+	BYTE test_input[param.blocksize/8 * nvals] = {0x0, 0x2, 0x3, 0x4, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
+	                                              0x0, 0x2, 0x3, 0x4, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
+												  0x0, 0x2, 0x3, 0x4, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+	BYTE test_mask[param.blocksize/8 * nvals] = {0x0};
 	
 	BYTE lowmc_key[] = {0x04, 0x03, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 	// // uint256_t inputShare, input_mask = 123;
 	BYTE outputShare[(uint64_t) ceil_divide(param.blocksize, 8) * nvals];
+
+	std::cout << "\nTEST: "<< param.blocksize/8 *nvals << std::endl;
+
+	// for(int i = 0; i < param.blocksize/8 * nvals; i++) {
+	// 	std::cout << i << " : fuck you ";
+	// }
+	// std::cout <<std::endl; 
+
+	for (uint16_t i = 0; i < nvals; i++) {
+		std::cout << "\nTEST BLOCK: "<< i << std::endl;
+		for (int j = ceil_divide(param.blocksize, 8) - 1; j >= 0; j--) {
+			std::cout << std::bitset<8>(test_input[i * param.blocksize/8 + j]);
+		}
+	}
+	// std::cout <<std::endl; 
+	//sleep(3); 
 
 	if (role == CLIENT) {
 		test_lowmc_circuit_shared_input(role, nvals, crypt, S_BOOL, party, sharings, circ, &param, lowmc_key, test_input, outputShare, SERVER);
@@ -110,10 +126,10 @@ int main(int argc, char** argv) {
 		test_lowmc_circuit_shared_input(role, nvals, crypt, S_BOOL, party, sharings, circ, &param, lowmc_key, test_mask, outputShare, SERVER);
 	}
 
-	for (int j = 0; j < ceil_divide(param.blocksize, 8) * nvals; j++) {
-		std::cout << std::bitset<8>(outputShare[j]);
-	}
-	std::cout<<std::endl;
+	// for (int j = 0; j < ceil_divide(param.blocksize, 8) * nvals; j++) {
+	// 	std::cout << std::bitset<8>(outputShare[j]);
+	// }
+	// std::cout<<std::endl;
 
 	return 0;
 }

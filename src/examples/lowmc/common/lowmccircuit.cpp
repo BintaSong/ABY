@@ -177,9 +177,10 @@ void lowmc_circuit_shared_input(e_role role, uint32_t nvals, crypto* crypt, e_sh
 	//Circuit build routine works for Boolean circuits only
 	assert(circ->GetCircuitType() == C_BOOLEAN);
 
-	share *s_in, *s_key, *s_ciphertext;
+	share *s_in, *s_key, *s_ciphertext, *s_out_debug, *s_in_debug;
 	// s_in = circ->PutSIMDINGate(nvals, input.GetArr(), para->blocksize, CLIENT);
 	s_in = circ->PutSharedSIMDINGate(nvals, inputShare, para->blocksize);
+
 	// s_in = circ->PutSharedINGate(inputShare, para->blocksize);
 	// s_in = circ->PutRepeaterGate(nvals, s_in);
 	//circ->PutPrintValueGate(s_in, "s_in");
@@ -192,12 +193,35 @@ void lowmc_circuit_shared_input(e_role role, uint32_t nvals, crypto* crypt, e_sh
 
 	s_ciphertext = BuildLowMCCircuit(role, s_in, s_key, (BooleanCircuit*) circ, para, zero_gate, crypt);
 
+	s_out_debug = circ->PutOUTGate(s_ciphertext, ALL);
 	s_ciphertext = circ->PutSharedOUTGate(s_ciphertext);
 	//s_ciphertext = circ->PutOUTGate(s_ciphertext, ALL);
+	s_in_debug = circ->PutOUTGate(s_in, ALL);
+	
 	
 	party->ExecCircuit();
 
 	uint8_t* output = s_ciphertext->get_clear_value_ptr();
+	uint8_t* out_debug = s_out_debug->get_clear_value_ptr();
+	uint8_t* in_debug = s_in_debug->get_clear_value_ptr();
+	
+	for (int i = 0; i < nvals; i++) {
+		std::cout << "\nLOWMC_INPUT_DEBUG: "<< i << std::endl;
+		for (int j = ceil_divide(para->blocksize, 8) - 1; j >= 0; j--) {
+			std::cout << std::bitset<8>(in_debug[i * para->blocksize/8 + j]);
+		}
+		std::cout <<std::endl;
+	}
+
+	
+	for (int i = 0; i < nvals; i++) {
+		std::cout << "\nLOWMC_OUTPUT_DEBUG: "<< i << std::endl;
+		for (int j = ceil_divide(para->blocksize, 8) - 1; j >= 0; j--) {
+			std::cout << std::bitset<8>(out_debug[i * para->blocksize/8 + j]);
+		}
+		std::cout <<std::endl;
+	}
+    
 
 	// CBitVector out;
 	// out.AttachBuf(output, (uint64_t) ceil_divide(para->blocksize, 8) * nvals);

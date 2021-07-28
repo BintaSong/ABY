@@ -156,7 +156,7 @@ std::vector<node_tuple_mz> encrypt_tree(const DecTree& tree, uint64_t *root_node
     for(uint64_t i = 0; i < tree.num_dec_nodes + tree.num_of_leaves; i++) {
         for (uint64_t j = 0; j < n_blocks; j++) {
             std::cout<< i << " -----" << j << std::endl;
-            block mask, msg((i<<3)+j); // FIXME: j here is for subindex, j <= 5 for our case, so i << 3 should be sufficient for i||j 
+            block mask, msg((i<<3)+2*j); // FIXME: j here is for subindex, j <= 5 for our case, so i << 3 should be sufficient for i||j 
             mask = lowmc.encrypt(msg);
             std::cout << i << " - " << j << " tree mask " <<  mask << std::endl;
             std::cout << i << " - " << j << " tree mask plain " <<  lowmc.decrypt(mask) << std::endl;
