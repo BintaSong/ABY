@@ -364,7 +364,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         std::cout << "\nnext : " << std::bitset<64>(next) << std::endl;
         for (uint64_t i = 0 ; i < n_simd_blocks; i++) {
             // set simd_next as [ next<<3+0, next<<3+1, next<<3+2,... ]
-            simd_next_index[i] = role == SERVER ? (next << 3) + i*2 : next << 3; // FIXME: next << 3 + i <==> next << (3+i) !!!
+            simd_next_index[i] = role == SERVER ? (next << 3) + i: next << 3; // FIXME: next << 3 + i <==> next << (3+i) !!!
             memcpy(simd_inputs + i*(blocksize/8), simd_next_index + i, sizeof(uint64_t));
             
             std::cout << "\nsimd_inputs: "<< i << std::endl;

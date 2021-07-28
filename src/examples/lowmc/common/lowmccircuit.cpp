@@ -430,7 +430,8 @@ void LowMCAddRoundKey(std::vector<uint32_t>& val, std::vector<uint32_t> key, uin
 void LowMCMultiplyState(std::vector<uint32_t>& state, uint32_t lowmcstatesize, uint32_t round, BooleanCircuit* circ) {
 	std::vector<uint32_t> tmpstate(lowmcstatesize);
 	for (uint32_t i = 0; i < lowmcstatesize; i++) {
-		tmpstate[i] = 0;
+		// tmpstate[i] = 0; FIXME: WRONG USAGE, 0 is the wire id of input's LSB ! 
+		tmpstate[i] = m_nZeroGate;
 		for (uint32_t j = 0; j < lowmcstatesize; j++) {
 			// compute current position
 			uint32_t current_pos = offset_LMatric + (round - 1) * lowmcstatesize * lowmcstatesize + i * lowmcstatesize + j; 
