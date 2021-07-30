@@ -4,7 +4,15 @@
 
 参考 https://github.com/BintaSong/ABY
 
-#### 使用
+
+#### git使用
+
+##### 撤销commit: 
+- 仅撤销 commit: `git reset --soft HEAD^`
+- 同时撤销 add: `git reset --hard HEAD^`
+- 撤销所有更改： `git checkout -- <files>`
+##### github加入authentication token
+- `git remote set-url origin https://<username>:<token>@github.com/<repolink>`
 
 ##### 编码
 - 原码
@@ -18,6 +26,25 @@
 ##### 一些坑
 - 对于整数 `uint64_t x`, `x << 5 + 1` 和 `x << 6`等价，即 `+`优先级大于`<<`。
 - `BYTE arr[N] = {0}` 或者 `memset(arr, 0, N)`让存储为0值。
+
+##### BUGS
+```c++
+void LowMCMultiplyState(std::vector<uint32_t>& state, uint32_t lowmcstatesize, uint32_t round, BooleanCircuit* circ) {
+	std::vector<uint32_t> tmpstate(lowmcstatesize);
+	for (uint32_t i = 0; i < lowmcstatesize; i++) {
+		tmpstate[i] = 0;
+		for (uint32_t j = 0; j < lowmcstatesize; j++) {
+			// compute current position
+			uint32_t current_pos = offset_LMatric + (round - 1) * lowmcstatesize * lowmcstatesize + i * lowmcstatesize + j; 
+			if (m_vRandomBits.GetBit(current_pos)) {
+				tmpstate[i] = circ->PutXORGate(tmpstate[i], state[j]);
+			}
+		}
+	}
+	state = tmpstate;
+}
+```
+函数`LowMCMultiplyState`将`state`代表的份额和一个`lowmcstatesize * lomcstatesize`的矩阵逐行做内积运算。这里，作者在循环开始时直接将`tmpstate[i]`初始化为0,带来错误。`tmpstate[i] = 0` 会将0号线的值带入运算，而0号线对应值为输入的最低位（LSB）。所以，导致lowmc对于所有奇数运算出错，而对偶数输入则没有影响。 解决方法是将`tmpstate[i]`设置为0值输入线的ID，在`lowmccircuit.cpp`源码中为m_nZeroGate (即`zero_gate = circ->PutConstantGate(0, nvals)`，要知道，输入为SIMD，因此0值需要有`nvals`个)。 
 
 
 ##### 基本运算性能
@@ -33,7 +60,7 @@
     ```
     而rand()函数的种子为time(NULL),如果两个终端运行时获取的时间不一样，生成的测试实例不一样。
 
-- 解决方法： 将随机数种子为如 `srand(0);`
+- 解决方法： 将随机数种子固定为同一个值，如 `srand(0);`
 
 
 | 运算 | 协议 | 时间 | 通信量 |

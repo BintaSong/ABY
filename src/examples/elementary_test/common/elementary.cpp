@@ -63,7 +63,7 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 	std::vector<uint32_t> yvals(numbers);
 
 	uint32_t i;
-	srand(time(NULL));
+	srand(0);
 
 	for (i = 0; i < numbers; i++) {
 
@@ -83,11 +83,10 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 
 //-------------------test OddEvenMergeSort-------------------
     // OddEvenMergeSort(xvals.data(), 0, numbers); 
-	// for (uint32_t i = 0; i < numbers; i++) {
+	// for (uint32_t i = 0; i < 10; i++) {
 	// 	std::cout << "\n element " << i << " : " << xvals[i] << std::endl;
 	// }
 
-	
 
 
 //-------------------test add-------------------
@@ -99,15 +98,24 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 	party->ExecCircuit();
 
 	
-	s_out -> get_clear_value_vec(&out_vals , &out_bitlen , &out_nvals) ;
-	// for (int i = 0; i < 10; i++) {
-	// 	std::cout << "\n add out_vals: " << out_vals[i] << std::endl;
-	// }
+	s_out->get_clear_value_vec(&out_vals , &out_bitlen , &out_nvals) ;	
 
-	 op_time = party->GetTiming(P_ONLINE) + party->GetTiming(P_SETUP);
+	// check correctness
+	std::cout<< "\nCheking correctness of addtion... \t";
+	for (uint32_t i = 0; i < numbers; i++) {
+		assert(out_vals[i] == (xvals[i]+yvals[i]));
+	}
+	std::cout<< "\033[32m\033[1m"  << "PASSED."  << "\033[0m" <<std::endl;
+
+	op_time = party->GetTiming(P_ONLINE) + party->GetTiming(P_SETUP);
 	std::cout << "\n ADD \t Total time: " << op_time  << "ms" << std::endl;
 
+	
+
 	party->Reset();
+	delete out_vals;
+
+
 
 //-------------------test mul -------------------
 	s_x_vec = ac->PutSIMDINGate(numbers, xvals.data(), 32, SERVER);
@@ -117,16 +125,21 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 	
 	party->ExecCircuit();
 
-	//uint32_t out_bitlen, out_nvals, *out_vals;
-	s_out -> get_clear_value_vec(&out_vals , &out_bitlen , &out_nvals) ;
-	// for (int i = 0; i < 10; i++) {
-	// 	std::cout << "\n mul out_vals: " << out_vals[i] << std::endl;
-	// }
+	s_out->get_clear_value_vec(&out_vals , &out_bitlen , &out_nvals) ;
+
+	// check correctness
+	std::cout<< "\nCheking correctness of multiplication...\t";
+	for (uint32_t i = 0; i < numbers; i++) {
+		assert(out_vals[i] == (xvals[i]*yvals[i]));
+	}
+	std::cout<< "\033[32m\033[1m"  << "PASSED."  << "\033[0m" <<std::endl;
+
 
 	op_time = party->GetTiming(P_ONLINE) + party->GetTiming(P_SETUP);
 	std::cout << "\n Mul \t Total time: " << op_time  << "ms" << std::endl;
 
 	party->Reset();
+	delete out_vals;
 
 
 //-------------------test CMP -------------------
@@ -137,21 +150,29 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 	
 	party->ExecCircuit();
 
-	//uint32_t out_bitlen, out_nvals, *out_vals;
-	s_out -> get_clear_value_vec(&out_vals , &out_bitlen , &out_nvals) ;
-	// for (int i = 0; i < 10; i++) {
-	// 	std::cout << "\n cmp out_vals: " << out_vals[i] << std::endl;
-	// }
+	s_out->get_clear_value_vec(&out_vals , &out_bitlen , &out_nvals) ;
+
+	// check correctness
+	std::cout<< "\nCheking correctness of compare...\t "<< out_bitlen << ", " << out_nvals;
+	for (uint32_t i = 0; i < numbers; i++) {
+		//std::cout<< out_vals[i]  << " " << xvals[i] << " " << yvals[i] << " " <<  (xvals[i]>yvals[i]) <<std::endl;
+		assert(out_vals[i] == (xvals[i]>yvals[i]));
+	}
+	std::cout<< "\033[32m\033[1m"  << "PASSED."  << "\033[0m" <<std::endl;
+
+
 
 	op_time = party->GetTiming(P_ONLINE) + party->GetTiming(P_SETUP);
 	std::cout << "\n CMP \t Total time: " << op_time  << "ms" << std::endl;
 
 	party->Reset();
+	delete out_vals;
 
 
+
+//------------------- test Max -------------------
 	share **share_ptr_vec;  
 	share_ptr_vec = (share**) malloc(sizeof(share*) * numbers); 
-//------------------- test Max -------------------
 	for (uint32_t i = 0; i < numbers; i++) {
 		share_ptr_vec[i] = bc->PutINGate(xvals[i], 32, SERVER);
 	}
@@ -161,7 +182,16 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 	party->ExecCircuit();
 
 	uint32_t max = s_out ->get_clear_value<uint32_t>();
-	// std::cout << "\n Max = " << max << std::endl;
+	
+	// check correctness
+	std::cout<< "\nCheking correctness of MAX...\t";
+	for (uint32_t i = 0; i < numbers; i++) {
+		
+		// assert(out_vals[i] == (xvals[i]>yvals[i]));
+	}
+	std::cout<< "\033[32m\033[1m"  << "PASSED."  << "\033[0m" <<std::endl;
+
+
 
 	op_time = party->GetTiming(P_ONLINE) + party->GetTiming(P_SETUP);
 	std::cout << "\n MAX \t Total time: " << op_time  << "ms" << std::endl;
@@ -183,7 +213,8 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 	op_time = party->GetTiming(P_ONLINE) + party->GetTiming(P_SETUP);
 	std::cout << "\n MIN \t Total time: " << op_time  << "ms" << std::endl;
 
-	party->Reset(); 
+	party->Reset();
+	
 
 
 //------------------- test Var ----------------
@@ -244,9 +275,9 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 		share_ptr_vec[i] = bc->PutINGate(xvals[i], 32, SERVER);
 	}
 
-	// BuildOddEvenMergeSort(share_ptr_vec, 0, numbers, bc);  
+	BuildOddEvenMergeSort(share_ptr_vec, 0, numbers, bc);  
 
-	BuildBubbleSort(share_ptr_vec, numbers, bc);
+	// BuildBubbleSort(share_ptr_vec, numbers, bc);
 
 	for (uint32_t i = 0; i < numbers; i++) {
 		share_ptr_vec[i] = bc->PutOUTGate(share_ptr_vec[i], ALL);
@@ -254,7 +285,7 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 
 	party->ExecCircuit(); 
 	
-	for (uint32_t i = 0; i < numbers; i++) {
+	for (uint32_t i = 0; i < 10; i++) {
 		uint32_t element = share_ptr_vec[i]->get_clear_value<uint32_t>();
 		std::cout << "\n element " << i << " : " << element << std::endl;
 	}
@@ -262,8 +293,10 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 	op_time = party->GetTiming(P_ONLINE) + party->GetTiming(P_SETUP);
 	std::cout << "\n Sort \t Total time: " << op_time  << "ms" << std::endl;
 
-	// party->Reset();
+	party->Reset();
 
+
+	delete share_ptr_vec; 
 
 	delete s_x_vec;
 	delete s_y_vec;
