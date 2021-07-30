@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
 	uint64_t r1 = r0 ^ ind;
 
 	//modify here if testing other trees
-	int i = 5; 
+	int i = 1; 
 	cout << "Testing..." << filename[i] << endl;
 
 	//hiding the real depth of tree
