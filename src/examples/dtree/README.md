@@ -1,4 +1,4 @@
-# Privacy-Preserving-Decision-Tree-2021 by Jianli
+# Privacy-Preserving-Decision-Tree-2021 by Xiangfu, Jianli
 
 ## Network Setup
 
@@ -27,12 +27,18 @@ make
 ```
 
 ## Run
+```bash
+to use lowmc: ./lowmc_nonmpc will generate required parameters by lowmc
+more info see: https://eprint.iacr.org/2016/687
+only to test lowmc: ./lowmc_test -r 0 -t 128 -k 80 -m 31 -o 12 
+```
 `Two terminal`
 `./test -r 0`
 `./test -r 1`
 
 ## Tips
 1.how to generate a dot file without any useless information like position when training a tree:
+
 ```
 in python
     >>> clf = tree.DecisionTreeClassifier()
@@ -40,9 +46,23 @@ in python
 
     >>> clf = clf.fit(iris.data, iris.target)
     >>> tree.export_graphviz(clf, out_file = "iris.dot")
- ```
-2.how to get a visial tree from a .dot file:
-`dot wine -T png -o wine.png`
+```
+
+2.how to get a visial tree from a .dot file:  
+`dot wine -T png -o wine.png`  
+
+3.how to simulate different networks:
+
+LAN, RTT:0.1ms, 1Gbps  
+`sudo tc qdisc add dev lo root netem delay 0.04ms rate 1024mbit`  
+MAN, RTT:6ms, 100Mbps  
+`sudo tc qdisc add dev lo root netem delay 3ms rate 100mbit`  
+WAN, RTT:80ms, 40Mbps  
+`sudo tc qdisc add dev lo root netem delay 40ms rate 40mbit `  
+ping localhost to see RTT  
+`ping localhost -c 6`  
+delete simulated configuration: (must delete the old one before setting new simulation)   
+`sudo tc qdisc delete dev lo root netem delay 0.04ms rate 1024mbit`
 
 
 ## Repositories

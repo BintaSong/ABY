@@ -173,7 +173,13 @@ void verify_AES_encryption(uint8_t* input, uint8_t* key, uint32_t nvals, uint8_t
  \param		client_only if true both the key and the values will be inputted by the client; default is false
 */
 // int32_t aes_circuit(e_role role, const std::string& address, uint16_t port, seclvl seclvl, uint32_t nvals, uint32_t nthreads, e_mt_gen_alg mt_alg, e_sharing sharing, bool verbose = false, bool use_vec_ands = false, bool expand_in_sfe = false, bool client_only = false);
-void aes_circuit(e_role role, uint32_t nvals, e_sharing sharing, ABYParty* party, crypto* crypt, std::vector<Sharing*>& sharings, Circuit* circ, uint64_t index, BYTE outShared[16], BYTE aes_key[16], bool verbose, bool use_vec_ands, bool expand_in_sfe, bool client_only);
+void aes_circuit_feature(e_role role, uint32_t nvals, e_sharing sharing, ABYParty* party, crypto* crypt, std::vector<Sharing*>& sharings, Circuit* circ, uint64_t index, BYTE outShared[16], BYTE aes_key[16], bool verbose, bool use_vec_ands, bool expand_in_sfe, bool client_only);
+void aes_circuit(e_role role, uint32_t nvals, e_sharing sharing,
+                 ABYParty *party, crypto *crypt,
+                 std::vector<Sharing *> &sharings, Circuit *circ,
+                 uint64_t index, BYTE outShared1[16], BYTE outShared2[16], BYTE outShared3[16], BYTE aes_key[16],
+                 bool verbose, bool use_vec_ands, bool expand_in_sfe,
+                 bool client_only);
 /**
  \param		key the key to be expanded
  \param		roundKey the result as the expansion of the small key. WARNING: This function uses call by reference,

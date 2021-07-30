@@ -24,7 +24,236 @@
 static uint32_t* pos_even;
 static uint32_t* pos_odd;
 
+//SMID AES
 void aes_circuit(e_role role, uint32_t nvals, e_sharing sharing,
+				ABYParty *party, crypto *crypt,
+				std::vector<Sharing *> &sharings, Circuit *circ,
+				uint64_t index, BYTE outShared1[16], BYTE outShared2[16], BYTE outShared3[16], BYTE aes_key[16],
+				bool verbose, bool use_vec_ands, bool expand_in_sfe,
+				bool client_only) {
+
+uint32_t aes_key_bits;
+
+CBitVector input, key, verify; // verify can be removed.
+
+// ids that are required for the vector_and optimization
+if (use_vec_ands) {
+	pos_even = (uint32_t *)malloc(sizeof(uint32_t) * nvals);
+	pos_odd = (uint32_t *)malloc(sizeof(uint32_t) * nvals);
+	for (uint32_t i = 0; i < nvals; i++) {
+	pos_even[i] = 2 * i;
+	pos_odd[i] = 2 * i + 1;
+	}
+}
+
+aes_key_bits = crypt->get_aes_key_bytes() * 8; // 128
+uint64_t temp1, temp2, temp3;
+// ------------初始化input-----------
+if (role == SERVER) {
+	input.Create(AES_BITS * nvals);
+	BYTE sharedIndex1[16];
+	BYTE sharedIndex2[16];
+	BYTE sharedIndex3[16];
+
+	temp1 = index * 4;
+	temp2 = index * 4 + 1;
+	temp3 = index * 4 + 2;
+	int2AES16hex(temp1, sharedIndex1);
+	int2AES16hex(temp2, sharedIndex2);
+	int2AES16hex(temp3, sharedIndex3);
+	for (int i = 0; i < 16; i++) {
+	input.SetByte(i, sharedIndex1[i]);
+	}
+	for (int i = 16; i < 32; i++) {
+	input.SetByte(i, sharedIndex2[i-16]);
+	}
+	for (int i = 32; i < 48; i++) {
+	input.SetByte(i, sharedIndex3[i-32]);
+	}
+} else if (role == CLIENT) {
+	input.Create(AES_BITS * nvals);
+	BYTE sharedIndex1[16];
+	BYTE sharedIndex2[16];
+	BYTE sharedIndex3[16];
+
+	temp1 = index * 4;
+	temp2 = index * 4;
+	temp3 = index * 4;
+	int2AES16hex(temp1, sharedIndex1);
+	int2AES16hex(temp2, sharedIndex2);
+	int2AES16hex(temp3, sharedIndex3);
+	for (int i = 0; i < 16; i++) {
+	input.SetByte(i, sharedIndex1[i]);
+	}
+	for (int i = 16; i < 32; i++) {
+	input.SetByte(i, sharedIndex2[i-16]);
+	}
+	for (int i = 32; i < 48; i++) {
+	input.SetByte(i, sharedIndex3[i-32]);
+	}
+}
+
+verify.Create(AES_BITS * nvals);
+key.CreateBytes(AES_EXP_KEY_BYTES);
+
+srand(7438);
+uint8_t expanded_key[AES_EXP_KEY_BYTES];
+ExpandKey(expanded_key, aes_key);
+key.Copy(expanded_key, 0, AES_EXP_KEY_BYTES);
+uint8_t *output;
+
+// 密文
+CBitVector out(nvals * AES_BITS);
+
+if (sharing == S_YAO_REV) {
+	// Currently the expand_in_sfe and client_only features are not supported
+	// in S_YAO_REV
+	assert(expand_in_sfe == false && client_only == false);
+
+	Circuit *yao_circ = sharings[S_YAO]->GetCircuitBuildRoutine();
+	Circuit *yao_rev_circ = sharings[S_YAO_REV]->GetCircuitBuildRoutine();
+
+	uint32_t nyao_circs, nyao_rev_circs;
+	nyao_rev_circs = (nvals / 2);
+	nyao_circs = nvals - nyao_rev_circs;
+
+	share *s_in_yao, *s_in_yao_rev, *s_key_yao, *s_key_yao_rev,
+		*s_ciphertext_yao, *s_ciphertext_yao_rev;
+
+	s_in_yao = yao_circ->PutSIMDINGate(nyao_circs, input.GetArr(),
+										aes_key_bits, CLIENT);
+	if (nyao_rev_circs > 0)
+	s_in_yao_rev = yao_rev_circ->PutSIMDINGate(
+		nyao_rev_circs, input.GetArr() + nyao_circs * AES_BYTES,
+		aes_key_bits, SERVER);
+
+	s_key_yao = yao_circ->PutINGate(key.GetArr(),
+									aes_key_bits * (AES_ROUNDS + 1), SERVER);
+	s_key_yao = yao_circ->PutRepeaterGate(nyao_circs, s_key_yao);
+
+	if (nyao_rev_circs > 0) {
+	s_key_yao_rev = yao_rev_circ->PutINGate(
+		key.GetArr(), aes_key_bits * (AES_ROUNDS + 1), CLIENT);
+	s_key_yao_rev =
+		yao_rev_circ->PutRepeaterGate(nyao_rev_circs, s_key_yao_rev);
+	}
+
+	s_ciphertext_yao = BuildAESCircuit(
+		s_in_yao, s_key_yao, (BooleanCircuit *)yao_circ, use_vec_ands);
+	if (nyao_rev_circs > 0) {
+	s_ciphertext_yao_rev =
+		BuildAESCircuit(s_in_yao_rev, s_key_yao_rev,
+						(BooleanCircuit *)yao_rev_circ, use_vec_ands);
+	}
+
+	party->ExecCircuit();
+
+	output = s_ciphertext_yao->get_clear_value_ptr();
+	out.SetBytes(output, 0L, (uint64_t)AES_BYTES * nyao_circs);
+
+	if (nyao_rev_circs > 0) {
+	output = s_ciphertext_yao_rev->get_clear_value_ptr();
+	out.SetBytes(output, (uint64_t)AES_BYTES * nyao_circs,
+					(uint64_t)AES_BYTES * nyao_rev_circs);
+	}
+
+} else {
+	// Circuit build routine works for Boolean circuits only right now
+	assert(circ->GetCircuitType() == C_BOOLEAN);
+
+	share *s_in, *s_key, *s_ciphertext;
+	// s_in = circ->PutSIMDINGate(nvals, input.GetArr(), aes_key_bits,
+	// CLIENT);
+	s_in = circ->PutSharedSIMDINGate(nvals, input.GetArr(), aes_key_bits);
+	e_role key_inputter;
+	if (client_only) {
+	key_inputter = CLIENT;
+	} else {
+	key_inputter = SERVER;
+	}
+	if (expand_in_sfe) {
+	s_key = circ->PutINGate(aes_key, AES_KEY_BITS, key_inputter);
+	s_key = BuildKeyExpansion(s_key, (BooleanCircuit *)circ, use_vec_ands);
+	} else {
+	s_key = circ->PutINGate(key.GetArr(), aes_key_bits * (AES_ROUNDS + 1),
+							key_inputter);
+	}
+	s_key = circ->PutRepeaterGate(nvals, s_key);
+
+	s_ciphertext =
+		BuildAESCircuit(s_in, s_key, (BooleanCircuit *)circ, use_vec_ands);
+	// s_ciphertext = circ->PutOUTGate(s_ciphertext, ALL);
+	s_ciphertext = circ->PutSharedOUTGate(s_ciphertext); // we want the shared
+	// ciphertext
+	party->ExecCircuit();
+
+	output = s_ciphertext->get_clear_value_ptr();
+
+	out.SetBytes(output, 0L, (uint64_t)AES_BYTES * nvals);
+}
+
+verify_AES_encryption(input.GetArr(), key.GetArr(), nvals, verify.GetArr(),
+						crypt);
+
+for (int i = 0; i < 48; i++) {
+	if(i < 16){
+		outShared1[i] = (unsigned int)out.GetArr()[i];
+	}else if(16 <= i < 32){
+		outShared2[i-16] = (unsigned int)out.GetArr()[i];
+	}else if(32 <= i < 48){
+		outShared3[i-32] = (unsigned int)out.GetArr()[i];
+	}
+	// std::cout << std::setw(2) << std::setfill('0') << (std::hex) <<
+	// (unsigned int)out.GetArr()[i];
+}
+// std::cout << std::endl;
+
+#ifndef BATCH
+std::cout << "Testing AES encryption in " << get_sharing_name(sharing) << " sharing: " << std::endl;
+#endif
+for (uint32_t i = 0; i < nvals; i++) {
+#ifndef BATCH
+	if(!verbose) {
+		std::cout << "(" << i << ") Input:\t";
+		input.PrintHex(i * AES_BYTES, (i + 1) * AES_BYTES);
+		std::cout << "(" << i << ") Key:\t";
+		key.PrintHex(0, AES_KEY_BYTES);
+		std::cout << "(" << i << ") Circ:\t";
+		out.PrintHex(i * AES_BYTES, (i + 1) * AES_BYTES);//各方的所对应的密文
+
+
+		std::cout << "(" << i << ") Verify:\t";
+		verify.PrintHex(i * AES_BYTES, (i + 1) * AES_BYTES);
+	}
+#endif
+	assert(verify.IsEqual(out, i*AES_BITS, (i+1)*AES_BITS));
+}
+#ifndef BATCH
+std::cout << "all tests succeeded" << std::endl;
+//#else
+std::cout << party->GetTiming(P_SETUP) << "\t" << party->GetTiming(P_GARBLE) << "\t" << party->GetTiming(P_ONLINE) << "\t" << party->GetTiming(P_TOTAL) <<
+		"\t" << party->GetSentData(P_TOTAL) + party->GetReceivedData(P_TOTAL) << "\t";
+if(sharing == S_YAO_REV) {
+	std::cout << sharings[S_YAO]->GetNumNonLinearOperations() +sharings[S_YAO_REV]->GetNumNonLinearOperations() << "\t" << sharings[S_YAO]->GetMaxCommunicationRounds()<< std::endl;
+} else  {
+	std::cout << sharings[sharing]->GetNumNonLinearOperations()	<< "\t" << sharings[sharing]->GetMaxCommunicationRounds()<< std::endl;
+}
+#endif
+// delete crypt;
+
+if(use_vec_ands) {
+	free(pos_even);
+	free(pos_odd);
+}
+free(output);
+input.delCBitVector();
+key.delCBitVector();
+verify.delCBitVector();
+out.delCBitVector();
+}
+
+/*单个AES的计算*/
+void aes_circuit_feature(e_role role, uint32_t nvals, e_sharing sharing,
                  ABYParty *party, crypto *crypt,
                  std::vector<Sharing *> &sharings, Circuit *circ,
                  uint64_t index, BYTE outShared[16], BYTE aes_key[16],
@@ -153,8 +382,8 @@ void aes_circuit(e_role role, uint32_t nvals, e_sharing sharing,
     out.SetBytes(output, 0L, (uint64_t)AES_BYTES * nvals);
   }
 
-  //verify_AES_encryption(input.GetArr(), key.GetArr(), nvals, verify.GetArr(),
-  //                      crypt);
+  verify_AES_encryption(input.GetArr(), key.GetArr(), nvals, verify.GetArr(),
+                        crypt);
 
   for (int i = 0; i < 16; i++) {
     outShared[i] = (unsigned int)out.GetArr()[i];
@@ -163,37 +392,37 @@ void aes_circuit(e_role role, uint32_t nvals, e_sharing sharing,
   }
   // std::cout << std::endl;
 	
-// #ifndef BATCH
-// 	std::cout << "Testing AES encryption in " << get_sharing_name(sharing) << " sharing: " << std::endl;
-// #endif
-// 	for (uint32_t i = 0; i < nvals; i++) {
-// #ifndef BATCH
-// 		if(!verbose) {
-// 			std::cout << "(" << i << ") Input:\t";
-// 			input.PrintHex(i * AES_BYTES, (i + 1) * AES_BYTES);
-// 			std::cout << "(" << i << ") Key:\t";
-// 			key.PrintHex(0, AES_KEY_BYTES);
-// 			std::cout << "(" << i << ") Circ:\t";
-// 			out.PrintHex(i * AES_BYTES, (i + 1) * AES_BYTES);//各方的所对应的密文
+#ifndef BATCH
+	std::cout << "Testing AES encryption in " << get_sharing_name(sharing) << " sharing: " << std::endl;
+#endif
+	for (uint32_t i = 0; i < nvals; i++) {
+#ifndef BATCH
+		if(!verbose) {
+			std::cout << "(" << i << ") Input:\t";
+			input.PrintHex(i * AES_BYTES, (i + 1) * AES_BYTES);
+			std::cout << "(" << i << ") Key:\t";
+			key.PrintHex(0, AES_KEY_BYTES);
+			std::cout << "(" << i << ") Circ:\t";
+			out.PrintHex(i * AES_BYTES, (i + 1) * AES_BYTES);//各方的所对应的密文
 
 
-// 			std::cout << "(" << i << ") Verify:\t";
-// 			verify.PrintHex(i * AES_BYTES, (i + 1) * AES_BYTES);
-// 		}
-// #endif
-// 		assert(verify.IsEqual(out, i*AES_BITS, (i+1)*AES_BITS));
-// 	}
-// #ifndef BATCH
-// 	std::cout << "all tests succeeded" << std::endl;
-// //#else
-// 	std::cout << party->GetTiming(P_SETUP) << "\t" << party->GetTiming(P_GARBLE) << "\t" << party->GetTiming(P_ONLINE) << "\t" << party->GetTiming(P_TOTAL) <<
-// 			"\t" << party->GetSentData(P_TOTAL) + party->GetReceivedData(P_TOTAL) << "\t";
-// 	if(sharing == S_YAO_REV) {
-// 		std::cout << sharings[S_YAO]->GetNumNonLinearOperations() +sharings[S_YAO_REV]->GetNumNonLinearOperations() << "\t" << sharings[S_YAO]->GetMaxCommunicationRounds()<< std::endl;
-// 	} else  {
-// 		std::cout << sharings[sharing]->GetNumNonLinearOperations()	<< "\t" << sharings[sharing]->GetMaxCommunicationRounds()<< std::endl;
-// 	}
-// #endif
+			std::cout << "(" << i << ") Verify:\t";
+			verify.PrintHex(i * AES_BYTES, (i + 1) * AES_BYTES);
+		}
+#endif
+		assert(verify.IsEqual(out, i*AES_BITS, (i+1)*AES_BITS));
+	}
+#ifndef BATCH
+	std::cout << "all tests succeeded" << std::endl;
+//#else
+	std::cout << party->GetTiming(P_SETUP) << "\t" << party->GetTiming(P_GARBLE) << "\t" << party->GetTiming(P_ONLINE) << "\t" << party->GetTiming(P_TOTAL) <<
+			"\t" << party->GetSentData(P_TOTAL) + party->GetReceivedData(P_TOTAL) << "\t";
+	if(sharing == S_YAO_REV) {
+		std::cout << sharings[S_YAO]->GetNumNonLinearOperations() +sharings[S_YAO_REV]->GetNumNonLinearOperations() << "\t" << sharings[S_YAO]->GetMaxCommunicationRounds()<< std::endl;
+	} else  {
+		std::cout << sharings[sharing]->GetNumNonLinearOperations()	<< "\t" << sharings[sharing]->GetMaxCommunicationRounds()<< std::endl;
+	}
+#endif
 	// delete crypt;
 
 	if(use_vec_ands) {

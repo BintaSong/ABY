@@ -199,6 +199,27 @@ void FSSFeatureRead(e_role role, string file1, string file2, vector<int>& zeroOr
     }
 }
 
+void OTKRead(string filename, vector<uint64_t>& OTK, int dim){
+    //-----------Read Evaluation Result of FSS----------------
+    for(int i = 0; i < dim; i++){
+		OTK.push_back(0);
+	}
+    string line;
+    int i = 0;
+    ifstream file;
+    file.open(filename);
+    if (!file) //条件成立，则说明文件打开出错
+      cout << "open " << filename << " errors" << endl;
+#ifdef DTREE_DEBUG
+    cout << "Reading from " << filename << endl;
+#endif
+    while (getline(file, line) && i < dim) {
+      OTK[i] = atoll(line.c_str());
+      i++;
+    }
+    file.close();
+}
+
 void FSSTreeRead(e_role role, string file1, string file2, vector<int>& zeroOrOne, int num){
     //-----------Read Evaluation Result of FSS----------------
     string line;

@@ -31,6 +31,7 @@ void deconcatenate(mpz_class concate_result, uint64_t& de_concate_result0, uint6
 uint64_t mpz2uint64(mpz_class z);
 uint64_t mpz2uint64_lowmc(mpz_class z);
 void FSSFeatureRead(e_role role, string file1, string file2, vector<int>& zeroOrOne, int num, int dim);
+void OTKRead(string filename, vector<uint64_t>& OTK, int dim);
 void FSSTreeRead(e_role role, string file1, string file2, vector<int>& zeroOrOne, int num);
 
 

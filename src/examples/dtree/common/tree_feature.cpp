@@ -1,6 +1,7 @@
 #include "tree_feature.h"
 string fssResultFile1 = "../../src/examples/dtree/fss/ZeroOrOne0.txt";
 string fssResultFile2 = "../../src/examples/dtree/fss/ZeroOrOne1.txt";
+string OTKFile = "../../src/examples/dtree/K.txt";
 
 //keys of server
 BYTE keys1[] = { 0x6E, 0x66, 0xAE, 0x0B,
@@ -38,12 +39,18 @@ BYTE lowmc_client_key[] = {0x04, 0x03, 0x0, 0x0,
     };
 
 
-void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl seclvl, uint32_t bitlen, uint32_t nthreads, e_mt_gen_alg mt_alg, e_sharing sharing, string filename, uint64_t featureDim, uint64_t r, uint32_t depthHide, uint32_t nvals, [[maybe_unused]] bool verbose, bool use_vec_ands, bool expand_in_sfe, bool client_only){
+void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl seclvl, 
+                        uint32_t bitlen, uint32_t nthreads, e_mt_gen_alg mt_alg, 
+                        e_sharing sharing, string filename, uint64_t featureDim, 
+                        uint64_t r, uint32_t depthHide, uint32_t nvals, 
+                        [[maybe_unused]] bool verbose, bool use_vec_ands, 
+                        bool expand_in_sfe, bool client_only){
 	srand((unsigned int)time(NULL)); // real random
     DecTree tree;
 	tree.read_from_file(filename);
     int totalNum = tree.num_dec_nodes + tree.num_of_leaves;
     uint64_t featureMax = pow(2, ceil(log(featureDim)/log(2)));
+    uint64_t attri;
     
 #ifdef DTREE_DEBUG
     cout << "tree.num_attributes in use " << tree.num_attributes << ", tree.featureDim in real " << featureDim << '\n';
@@ -77,6 +84,24 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
 
     //for test....generating fixed attribute values of feature vector
 
+#if DTREE_FEAREAD_BY_OT
+
+    uint64_t *initAttr, *sentAttri, *rcvAttri;
+    initAttr = (uint64_t*) malloc(featureDim * sizeof(uint64_t));
+	sentAttri = (uint64_t*) malloc(featureDim * sizeof(uint64_t));
+    rcvAttri = (uint64_t*) malloc(featureDim * sizeof(uint64_t));
+
+    vector<uint64_t> OTK;
+    if(role == CLIENT){
+        attri = 666864304155736222;
+        for(int i = 0; i < featureDim; i++){
+            initAttr[i] = i;
+        }
+        OTKRead(OTKFile, OTK, featureDim);
+    }
+
+#else
+
 #if DTREE_ENCRYPTED_BY_LOWMC 
     node_tuple_mz encryptedFeature = encrypt_fixed_feature(featureDim, featureMax);
 #else
@@ -86,6 +111,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
     vector<int> zeroOrOneFt;
     FSSFeatureRead(role, fssResultFile1, fssResultFile2, zeroOrOneFt, featureMax, featureDim);
 
+#endif
 
     //-----------Read Evaluation Result of FSS for tree----------------
     vector<int> zeroOrOneDt;
@@ -120,6 +146,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
     share* s_cmp; 
     share* s_c;
 	share* out;
+    uint64_t out_delta;
     
     #if DTREE_ENCRYPTED_BY_LOWMC
         // load lowmc parametres before used
@@ -148,7 +175,52 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
     for(int i = 0; i < tree.depth + depthHide; i++){
     // #ifdef DTREE_DEBUG
         std::cout << "\n*****************this is in depth " << i << "******************" << endl; 
-    // #endif 
+    // #endif
+
+    #if DTREE_FEAREAD_BY_OT
+        // reveal difference for OT,although r is known to server, we suppose here it is unknown.
+        s_a = circ->PutSharedINGate(r, bitlen);//2
+        s_b = circ->PutSharedINGate(node[3], bitlen);//6
+        s_a = ac->PutB2AGate(s_a);
+        s_b = ac->PutB2AGate(s_b);
+        s_c = ac->PutSUBGate(s_b, s_a);//b-a
+        out = ac->PutOUTGate(s_c, ALL);
+        // Execute again and get the reconstructed result
+        party->ExecCircuit();
+        //avoid negtive number by adding featureDim, because the offset should be positive
+        if(out->get_clear_value<int64_t>() < 0){
+            out_delta = out->get_clear_value<int64_t>() + featureDim;
+        }else{
+            out_delta = out->get_clear_value<uint64_t>();
+        }
+    #ifdef DTREE_DEBUG
+        cout << "delta of tree" << (role == SERVER?"server: ":"client: ") << out_delta << std::endl; // here output the shared value.
+    #endif
+        party->Reset();
+
+        //client sends encrypted feature to the server
+        if(role == CLIENT){
+            for(int i = 0; i < featureDim; i++){
+                sentAttri[i] = OTK[i] ^ initAttr[(i+out_delta)%featureDim] ^ attri;
+            }
+            s_a = circ->PutSharedSIMDINGate(featureDim, sentAttri, bitlen);
+        }else{
+            for(int i = 0; i < featureDim; i++){
+                sentAttri[i] = 0;
+            }
+            s_a = circ->PutSharedSIMDINGate(featureDim, sentAttri, bitlen);
+        }
+        out = circ->PutOUTGate(s_a, ALL);
+        party->ExecCircuit();
+        uint32_t tmpbitlen, tmpnvals;
+        out->get_clear_value_vec(&rcvAttri, &tmpbitlen, &tmpnvals);
+        party->Reset();
+
+        if(role == SERVER){
+            uint64_t OTK2 = 1753871613581113959;//read from the file
+            attri = rcvAttri[2] ^ OTK2;
+        }
+    #else 
         //-----------Compute delta = r ^ node[3] by Mpc----------------
         s_a = circ->PutSharedINGate(r, bitlen);
         s_b = circ->PutSharedINGate(node[3], bitlen);
@@ -169,17 +241,8 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         mpz_class sharedAttri = 0;
         for (int i = 0; i < featureMax; i++) {
             sharedAttri = (*(encryptedFeature.plain.data() +(i^delta)) * zeroOrOneFt[i]) ^ sharedAttri;
-            //cout << sharedAttri << endl;
         }
-        // std::cout << " Attribute share is: " << sharedAttri.get_str(2) << std::endl;
 
-    #ifdef DTREE_DEBUG
-        cout << "shared atrribute value from " << (role == SERVER?"server: ":"client: ") << " is " << sharedAttri << endl;
-        //verify the correctness of shared attribute value
-        // mpz_class a("254660458319129247083910018378620234586", 10);
-        // mpz_class b("234615298901844452662224218719500917163", 10);
-        // cout << "shared encrypted atrribute value is " << (a ^ b) << endl;
-    #endif
     #if DTREE_DEBUG
         //----------reveal next index of attri for AES(should be removed in the future)-----------
         std::cout << ("before, node[3]: ") << node[3] << endl; // here output the value.
@@ -237,13 +300,13 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         //std::cout << "lowmc" << std::endl;
     #else
         BYTE indShared[16];
-        aes_circuit(role, nvals, sharing,  party, crypt, sharings, circ, node[3], indShared, keyc4, verbose, use_vec_ands, expand_in_sfe, client_only);
+        aes_circuit_feature(role, nvals, sharing,  party, crypt, sharings, circ, node[3], indShared, keyc4, verbose, use_vec_ands, expand_in_sfe, client_only);
         party->Reset();
         aes_xor_class_plain(indShared, sharedAttri);// server and client do xor locally
     #endif
 
     #ifdef DTREE_DEBUG
-        cout << "shared atrribute value from " << (role == SERVER?"server: ":"client: ") << " is " << sharedAttri << endl;
+        cout << "shared atrribute value from " << (role == SERVER?"server: ":"client: ") << " is " << sharedAttri.get_str(2) << endl;
     #endif
 
 
@@ -267,7 +330,6 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         cout << "shared atrribute value from " << (role == SERVER?"server: ":"client: ") << " is " << sharedAttri << endl;
     #endif
 
-    uint64_t attri;
     #if DTREE_ENCRYPTED_BY_LOWMC 
     // std::cout << "lowmc1" << std::endl;    
     sharedAttri = sharedAttri % pow(2, 64); 
@@ -287,10 +349,15 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
     #else
         //we deconcatenate 128bits to 64bits
         deconcatenate(sharedAttri, attri);
+    #endif
+
     #endif 
         //-----------Comparison a threshold and an attribute value by Mpc----------------
         //should be x[i] <= t, if true, go left, else, go right
         //that is t >= x[i], if true, go left, else, go right
+    #ifdef DTREE_DEBUG
+        cout << "\n**Running Comparison and Multiplexer subprotocol..." << endl;
+    #endif 
         s_a = circ->PutSharedINGate(node[0], bitlen);
         s_b = circ->PutSharedINGate(attri, bitlen);
         s_cmp = circ->PutGTGate(s_a, s_b);
@@ -300,16 +367,16 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         //if s_cmp  = 1, s_a will be returned, otherwise, s_b is returned.
         out = circ->PutMUXGate(s_a, s_b, s_cmp);
         out = circ->PutSharedOUTGate(out);
-    #ifdef DTREE_DEBUG
-        cout << "\n**Running Multiplexer subprotocol..." << endl;
-    #endif 
         party->ExecCircuit();
         //output will be the shares of the index of next node
         uint64_t next = out->get_clear_value<uint64_t>();
         party->Reset();
+    #ifdef DTREE_DEBUG
+        cout << "shared next index in" << (role == SERVER?"server: ":"client: ") << " is " << next << endl;
+    #endif
 
 
-        //-----------B2A for r and next, the result is also shared ini arith : for the convinience of fss result * tree node----------------
+        //-----------B2A for r and next, the result is also shared in arith : for the convinience of fss result * tree node----------------
         s_a = circ->PutSharedINGate(r, bitlen);//2
         s_b = circ->PutSharedINGate(next, bitlen);//1
         s_a = ac->PutB2AGate(s_a);
@@ -319,7 +386,6 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         // Execute again and get the reconstructed result
         party->ExecCircuit();
         //avoid negtive number by adding totalNum, because the offset should be positive
-        uint64_t out_delta;
         if(out->get_clear_value<int64_t>() < 0){
             out_delta = out->get_clear_value<int64_t>() + totalNum;
         }else{
@@ -389,12 +455,16 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         BYTE nodeShared1[16];
         BYTE nodeShared2[16];
         BYTE nodeShared3[16];
-        aes_circuit(role, nvals, sharing,  party, crypt, sharings, circ, next, nodeShared1, keys1, verbose, use_vec_ands, expand_in_sfe, client_only);
+        aes_circuit(role, 3, sharing,  party, crypt, sharings, circ, next, nodeShared1, nodeShared2, nodeShared3, keys1, verbose, use_vec_ands, expand_in_sfe, client_only);
         party->Reset();
-        aes_circuit(role, nvals, sharing,  party, crypt, sharings, circ, next, nodeShared2, keys2, verbose, use_vec_ands, expand_in_sfe, client_only);
-        party->Reset();
-        aes_circuit(role, nvals, sharing,  party, crypt, sharings, circ, next, nodeShared3, keys3, verbose, use_vec_ands, expand_in_sfe, client_only);
-        party->Reset();
+        /*
+        using different AES keys
+            aes_circuit(role, nvals, sharing,  party, crypt, sharings, circ, next, nodeShared1, keys1, verbose, use_vec_ands, expand_in_sfe, client_only);
+            party->Reset();
+            aes_circuit(role, nvals, sharing,  party, crypt, sharings, circ, next, nodeShared2, keys2, verbose, use_vec_ands, expand_in_sfe, client_only);
+            party->Reset();
+            aes_circuit(role, nvals, sharing,  party, crypt, sharings, circ, next, nodeShared3, keys3, verbose, use_vec_ands, expand_in_sfe, client_only); 
+        */
         aes_xor_class_plain(nodeShared1, share1);// server and client do xor locally
         aes_xor_class_plain(nodeShared2, share2);// server and client do xor locally
         aes_xor_class_plain(nodeShared3, share3);// server and client do xor locally
@@ -447,7 +517,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
 
     // if (i == 1) break ;
 
-    #ifdef DTREE_DEBUG
+    // #ifdef DTREE_DEBUG
         out = circ->PutSharedINGate(node[0], bitlen);
         out = circ->PutOUTGate(out, ALL);
         party->ExecCircuit();
@@ -455,9 +525,9 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         uint64_t node0 = out->get_clear_value<uint64_t>();
         cout << "node0 in " << (role == SERVER?"server: ":"client: ") << node0 << endl; 
         party->Reset();
-    #endif
+    // #endif
         
-    #ifdef DTREE_DEBUG
+    // #ifdef DTREE_DEBUG
         out = circ->PutSharedINGate(node[1], bitlen);
         out = circ->PutOUTGate(out, ALL);
         party->ExecCircuit();
@@ -465,9 +535,9 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         uint64_t node1 = out->get_clear_value<uint64_t>();
         cout << "node1 in " << (role == SERVER?"server: ":"client: ") << node1 << endl;
         party->Reset(); 
-    #endif 
+    // #endif 
         
-    #ifdef DTREE_DEBUG
+    // #ifdef DTREE_DEBUG
         out = circ->PutSharedINGate(node[2], bitlen);
         out = circ->PutOUTGate(out, ALL);
         party->ExecCircuit();
@@ -475,9 +545,9 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         uint64_t node2 = out->get_clear_value<uint64_t>();
         cout << "node2 in " << (role == SERVER?"server: ":"client: ") << node2 << endl; 
         party->Reset();
-    #endif 
+    // #endif 
 
-    #ifdef DTREE_DEBUG
+    // #ifdef DTREE_DEBUG
         out = circ->PutSharedINGate(node[3], bitlen);
         out = circ->PutOUTGate(out, ALL);
         party->ExecCircuit();
@@ -485,9 +555,9 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         uint64_t node3 = out->get_clear_value<uint64_t>();
         cout << "node3 in " << (role == SERVER?"server: ":"client: ") << node3 << endl;
         party->Reset();
-    #endif 
+    // #endif 
 
-    #ifdef DTREE_DEBUG
+    // #ifdef DTREE_DEBUG
         out = circ->PutSharedINGate(node[4], bitlen);
         out = circ->PutOUTGate(out, ALL);
         party->ExecCircuit();
@@ -495,7 +565,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         uint64_t node4 = out->get_clear_value<uint64_t>();
         cout << "node4 in " << (role == SERVER?"server: ":"client: ") << node4 << endl;
         party->Reset();
-    #endif 
+    // #endif 
     } //end for
 
 #ifdef DTREE_DEBUG

@@ -18,6 +18,8 @@ typedef unsigned char BYTE;
 
 // #define DTREE_DEBUG 1
 
-#define DTREE_ENCRYPTED_BY_LOWMC 1
+#define DTREE_ENCRYPTED_BY_LOWMC 1 //0 is by AES
+
+#define DTREE_FEAREAD_BY_OT 1 //0 is by FSS
 
 #endif
