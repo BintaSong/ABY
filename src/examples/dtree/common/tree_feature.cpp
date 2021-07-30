@@ -173,9 +173,9 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
     #endif
 
     for(int i = 0; i < tree.depth + depthHide; i++){
-    // #ifdef DTREE_DEBUG
+    #ifdef DTREE_DEBUG
         std::cout << "\n*****************this is in depth " << i << "******************" << endl; 
-    // #endif
+    #endif
 
     #if DTREE_FEAREAD_BY_OT
         // reveal difference for OT,although r is known to server, we suppose here it is unknown.
