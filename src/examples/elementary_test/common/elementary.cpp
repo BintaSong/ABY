@@ -67,8 +67,8 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 
 	for (i = 0; i < numbers; i++) {
 
-		x = rand() % (2 << 16);
-		y = rand() % (2 << 16);
+		x = rand() % (2 << 8);
+		y = rand() % (2 << 8);
 
 		//v_sum += x + y;
 
@@ -220,10 +220,13 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 //------------------- test Var ----------------
 	share *s_x2_vec, *s_sum, *s2_sum; 
 	s_x_vec = ac->PutSIMDINGate(numbers, xvals.data(), 32, SERVER);
-	s_x2_vec = BuildMulCircuit(s_x_vec, s_x_vec, numbers, ac); 
+	s_x2_vec = BuildMulCircuit(s_x_vec, s_x_vec, numbers, ac);
+	
 
 	s_x_vec = ac->PutSplitterGate(s_x_vec);
 	s_x2_vec = ac->PutSplitterGate(s_x2_vec);
+
+	// std::vector<uint32_t> wires_vector = s_x2_vec->get_wires(); 
 
 	for (i = 1; i < numbers; i++) {
 		s_x_vec->set_wire_id(0, ac->PutADDGate(s_x_vec->get_wire_id(0), s_x_vec->get_wire_id(i)));
@@ -243,6 +246,18 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 	double var = 1.0 * sum2 / numbers - 1.0 * sum / (numbers * numbers);
 	std::cout << "\n var = " << var << std::endl;
 
+	uint32_t p_sum = 0, p_sum2 = 0;
+	for (i = 0; i < numbers; i++) {
+		p_sum += xvals[i];
+		p_sum2 += (xvals[i] * xvals[i]);
+	}
+
+	double p_var = 1.0 * p_sum2 / numbers - 1.0 * p_sum*p_sum / (numbers * numbers);
+
+	// std::cout << var << " " << p_var << std::endl;
+
+	assert(abs(p_var - var) < 0.001 );
+
 	op_time = party->GetTiming(P_ONLINE) + party->GetTiming(P_SETUP);
 	std::cout << "\n VAR \t Total time: " << op_time  << "ms" << std::endl;
 
@@ -251,25 +266,6 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 
 
 //------------------- test odd-even Sort ----------------
-
-// void odd_even_sort(int arr[], int len) {
-// 	int odd_even, i;
-// 	int temp;
-// 	int sorted = 0;
-// 	while (!sorted) {
-// 		sorted = 1;
-// 		for (odd_even = 0; odd_even < 2; odd_even++)
-// 			for (i = odd_even; i < len - 1; i += 2)
-// 				if (arr[i] > arr[i + 1]) {
-// 					temp = arr[i];
-// 					arr[i] = arr[i + 1];
-// 					arr[i + 1] = temp;
-// 					sorted = 0;
-// 				}
-// 	}
-// }
-
-
 
 	for (uint32_t i = 0; i < numbers; i++) {
 		share_ptr_vec[i] = bc->PutINGate(xvals[i], 32, SERVER);
@@ -285,21 +281,26 @@ int32_t test_elementary_circuit(e_role role, const std::string& address, uint32_
 
 	party->ExecCircuit(); 
 	
-	for (uint32_t i = 0; i < 10; i++) {
-		uint32_t element = share_ptr_vec[i]->get_clear_value<uint32_t>();
-		std::cout << "\n element " << i << " : " << element << std::endl;
-	}
+	// for (uint32_t i = 0; i < 10; i++) {
+	// 	uint32_t element = share_ptr_vec[i]->get_clear_value<uint32_t>();
+	// 	std::cout << "\n element " << i << " : " << element << std::endl;
+	// }
 
 	op_time = party->GetTiming(P_ONLINE) + party->GetTiming(P_SETUP);
 	std::cout << "\n Sort \t Total time: " << op_time  << "ms" << std::endl;
 
 	party->Reset();
 
-
 	delete share_ptr_vec; 
-
 	delete s_x_vec;
 	delete s_y_vec;
+
+
+
+
+
+
+
 	delete party;
 
 	return 0;
