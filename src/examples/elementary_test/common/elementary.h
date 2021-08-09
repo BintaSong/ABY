@@ -25,7 +25,10 @@
 #include "../../../abycore/aby/abyparty.h"
 #include <math.h>
 #include <cassert>
+#include <sstream>
 
+#define FILE_INPUT 1
+#define ELEMENTARY_DEBUG 1
 
 /**
  \param		role 		role played by the program which can be server or client part.

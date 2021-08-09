@@ -26,6 +26,8 @@
 #include <iostream>
 #include <math.h>
 
+#include "elementary.h"
+
 void read_test_options(int32_t* argcp, char*** argvp, e_role* role,
 	uint32_t* bitlen, uint32_t* nvals, uint32_t* secparam, std::string* address,
 	uint16_t* port, int32_t* test_op, uint32_t* test_bit, double* fpa, double* fpb) {
@@ -64,6 +66,23 @@ void read_test_options(int32_t* argcp, char*** argvp, e_role* role,
 	*test_bit = int_testbit;
 }
 
+std::vector<double> split(std::string s, std::string delimiter) {
+    size_t pos_start = 0, pos_end, delim_len = delimiter.length();
+    std::string token;
+    std::vector<double> res;
+
+    while ((pos_end = s.find (delimiter, pos_start)) != std::string::npos) {
+        token = s.substr (pos_start, pos_end - pos_start);
+        pos_start = pos_end + delim_len;
+        res.push_back (std::stod(token));
+		//std::cout<< std::stoi(token)<<std::endl;
+    }
+
+    res.push_back(std::stod(s.substr(pos_start)));
+	//std::cout<< std::stoi(s.substr(pos_start))<<std::endl;
+    return res;
+}
+
 void test_verilog_add64_SIMD(e_role role, const std::string& address, uint16_t port, seclvl seclvl, uint32_t nvals, uint32_t nthreads,
 	e_mt_gen_alg mt_alg, e_sharing sharing, double afp, double bfp) {
 
@@ -78,7 +97,8 @@ void test_verilog_add64_SIMD(e_role role, const std::string& address, uint16_t p
 
 	BooleanCircuit* circ = (BooleanCircuit*) sharings[sharing]->GetCircuitBuildRoutine();
 
-	// point a uint64_t pointer to the two input floats without casting the content
+
+// point a uint64_t pointer to the two input floats without casting the content
 	uint64_t *aptr = (uint64_t*) &afp;
 	uint64_t *bptr = (uint64_t*) &bfp;
 
@@ -93,6 +113,47 @@ void test_verilog_add64_SIMD(e_role role, const std::string& address, uint16_t p
 	uint64_t avals[nvals];
 	uint64_t bvals[nvals];
 
+#if FILE_INPUT
+	std::cout<< "\nReading inputs from file..." << std::endl;
+	std::string input_file = role == SERVER ? "INPUT_float_0" : "INPUT_float_1";
+	std::ifstream file_in(input_file.c_str()); // 打开状态保存文本
+	if (!file_in.is_open()) {
+		throw std::runtime_error(input_file + ": unable to read the input file");
+	}
+ 	std::stringstream rand_buf;
+    rand_buf << file_in.rdbuf();
+	file_in.close();
+	
+	std::vector<double> xvals, yvals;
+
+	std::string input_str = rand_buf.str();
+	if (role == SERVER) {
+		xvals = split(input_str, " ");
+		nvals = xvals.size(); // 根据文件中输入数据个数来确定输入的数据量
+		for (int i = 0; i < nvals; i++) {
+			std::cout << "\n xvals[" << i << "]" << " = " <<xvals[i] << std::endl;
+		}
+	}
+	else {
+		yvals = split(input_str, " ");
+		nvals = yvals.size(); // 根据文件中输入数据个数来确定输入的数据量
+		for (int i = 0; i < nvals; i++) {
+			std::cout << "\n yvals[" << i << "]" << " = " <<yvals[i] << std::endl;
+		}
+	}
+	// std::cout << "\n hello " << std::endl;
+
+	for (int i = 0; i < nvals; i++) {
+		// std::cout << i << std::endl;
+		if (role == SERVER) {
+			avals[i] = *(uint64_t*) (xvals.data() + i);
+			// memcpy(avals, xvals.data(), nvals*sizeof(double));
+		}
+		else {
+			bvals[i] = *(uint64_t*) (yvals.data() + i);
+		}
+	}
+#else
 	// fill array with input values nvals times.
 	std::fill(avals, avals + nvals, *aptr);
 	std::fill(bvals, bvals + nvals, *bptr);
@@ -101,12 +162,9 @@ void test_verilog_add64_SIMD(e_role role, const std::string& address, uint16_t p
 	bvals[1] = 0;
 	bvals[2] = *(uint64_t*) &afp;
 	avals[3] = *(uint64_t*) &bfp;
-
-
-
+#endif 
 
 //------ FP addition gate ---------------
-
 	// SIMD input gates
 	share* ain = circ->PutSIMDINGate(nvals, avals, bitlen, SERVER);
 	share* bin = circ->PutSIMDINGate(nvals, bvals, bitlen, CLIENT);
@@ -117,6 +175,12 @@ void test_verilog_add64_SIMD(e_role role, const std::string& address, uint16_t p
 	share* sum = circ->PutFPGate(ain, bin, ADD, bitlen, nvals, no_status);
 	share* add_out = circ->PutOUTGate(sum, ALL);
 
+#if ELEMENTARY_DEBUG 
+	share *s_add_input_x_share = circ->PutSharedOUTGate(ain);
+	share *s_add_input_y_share = circ->PutSharedOUTGate(bin);
+	share *s_add_output_share = circ->PutSharedOUTGate(sum);
+#endif
+
 	party->ExecCircuit();
 
 	uint32_t out_bitlen_add, out_nvals;
@@ -124,9 +188,43 @@ void test_verilog_add64_SIMD(e_role role, const std::string& address, uint16_t p
 
 	add_out->get_clear_value_vec(&out_vals_add, &out_bitlen_add, &out_nvals);
 
+
+#if ELEMENTARY_DEBUG
+	uint64_t *in_x_share, *in_y_share, *out_share; 
+	uint32_t in_x_bitlen, in_y_bitlen, in_x_nvals, in_y_nvals; 
+	s_add_input_x_share->get_clear_value_vec(&in_x_share , &in_x_bitlen , &in_x_nvals);	
+	s_add_input_y_share->get_clear_value_vec(&in_y_share , &in_y_bitlen , &in_y_nvals);
+	s_add_output_share->get_clear_value_vec(&out_share, &out_bitlen_add, &out_nvals);	
+
+	std::cout << "\n\nADD input x share: " << std::endl;
+	for (uint32_t i = 0; i < nvals; i++) {
+		std::cout << "\n xvals_share[" << i << "]" << " = " <<in_x_share[i] << std::endl;
+	}
+
+	std::cout << "\n\nADD input y share: " << std::endl;
+	for (uint32_t i = 0; i < nvals; i++) {
+		std::cout << "\n yvals_share[" << i << "]" << " = " <<in_y_share[i] << std::endl;
+	}
+
+	std::cout << "\n\nADD result share: " << std::endl;
+	for (uint32_t i = 0; i < nvals; i++) {
+		std::cout << "\n Result_share[" << i << "]" << " = " <<out_share[i] << std::endl;
+	}
+
+	std::cout << "\n\nADD results: " << std::endl;
+	for (uint32_t i = 0; i < nvals; i++) {
+		std::cout << "\n RESULT[" << i << "]" << " = " << *(double*) &(out_vals_add[i]) << std::endl;
+		// std::cout << "\n RESULT[" << i << "]" << " = " << out_vals_add[i] << std::endl;
+	}
+#endif
+
 	double op_time = party->GetTiming(P_ONLINE) + party->GetTiming(P_SETUP);
 	std::cout << "\n FP ADD, \t total time: " << op_time  << "ms" << std::endl;
 
+	// uint64_t test = 4624252750237611852;
+	// double test_double = *(double*) &test;
+	// std::cout << "test double " << test_double  << std::endl;
+	
 	party->Reset();
 
 //------ FP Mul gate ---------------
@@ -140,12 +238,51 @@ void test_verilog_add64_SIMD(e_role role, const std::string& address, uint16_t p
 	share* mul = circ->PutFPGate(ain, bin, MUL, bitlen, nvals, no_status);
 	share* mul_out = circ->PutOUTGate(mul, ALL);
 
+#if ELEMENTARY_DEBUG 
+	share *s_mul_input_x_share = circ->PutSharedOUTGate(ain);
+	share *s_mul_input_y_share = circ->PutSharedOUTGate(bin);
+	share *s_mul_output_share = circ->PutSharedOUTGate(mul);
+#endif
+
 	party->ExecCircuit();
 
 	uint32_t out_bitlen_mul, out_mul_nvals;
 	uint64_t *out_vals_mul;
 
 	mul_out->get_clear_value_vec(&out_vals_mul, &out_bitlen_mul, &out_mul_nvals);
+
+#if ELEMENTARY_DEBUG
+	// uint64_t *in_x_share, *in_y_share, *out_share; 
+	// uint32_t in_x_bitlen, in_y_bitlen, in_x_nvals, in_y_nvals; 
+	s_add_input_x_share->get_clear_value_vec(&in_x_share , &in_x_bitlen , &in_x_nvals);	
+	s_add_input_y_share->get_clear_value_vec(&in_y_share , &in_y_bitlen , &in_y_nvals);
+	s_add_output_share->get_clear_value_vec(&out_share, &out_bitlen_mul, &out_mul_nvals);	
+
+	std::cout << "\n\nMUL input x share: " << std::endl;
+	for (uint32_t i = 0; i < nvals; i++) {
+		std::cout << "\n xvals_share[" << i << "]" << " = " <<in_x_share[i] << std::endl;
+	}
+
+	std::cout << "\n\nMUL input y share: " << std::endl;
+	for (uint32_t i = 0; i < nvals; i++) {
+		std::cout << "\n yvals_share[" << i << "]" << " = " <<in_y_share[i] << std::endl;
+	}
+
+	std::cout << "\n\nMUL result share: " << std::endl;
+	for (uint32_t i = 0; i < nvals; i++) {
+		std::cout << "\n Result_share[" << i << "]" << " = " <<out_share[i] << std::endl;
+	}
+
+	std::cout << "\n\nMUL results: " << std::endl;
+	for (uint32_t i = 0; i < nvals; i++) {
+		std::cout << "\n RESULT[" << i << "]" << " = " << *(double*) &(out_vals_mul[i]) << std::endl;
+		// std::cout << "\n RESULT[" << i << "]" << " = " << out_vals_add[i] << std::endl;
+	}
+
+	free(in_x_share);
+	free(in_y_share);
+	free(out_share);
+#endif
 
 	op_time = party->GetTiming(P_ONLINE) + party->GetTiming(P_SETUP);
 	std::cout << "\n FP MUL, \t total time: " << op_time  << "ms" << std::endl;
@@ -163,12 +300,51 @@ void test_verilog_add64_SIMD(e_role role, const std::string& address, uint16_t p
 	share* cmp = circ->PutFPGate(ain, bin, CMP, bitlen, nvals);
 	share* cmp_out = circ->PutOUTGate(cmp, ALL);
 
+#if ELEMENTARY_DEBUG 
+	share *s_cmp_input_x_share = circ->PutSharedOUTGate(ain);
+	share *s_cmp_input_y_share = circ->PutSharedOUTGate(bin);
+	share *s_cmp_output_share = circ->PutSharedOUTGate(cmp);
+#endif
+
 	party->ExecCircuit();
 
 	uint32_t out_bitlen_cmp, out_cmp_nvals;
 	uint64_t *out_vals_cmp;
 
 	cmp_out->get_clear_value_vec(&out_vals_cmp, &out_bitlen_cmp, &out_cmp_nvals);
+
+#if ELEMENTARY_DEBUG
+	// uint64_t *in_x_share, *in_y_share, *out_share; 
+	// uint32_t in_x_bitlen, in_y_bitlen, in_x_nvals, in_y_nvals; 
+	s_cmp_input_x_share->get_clear_value_vec(&in_x_share , &in_x_bitlen , &in_x_nvals);	
+	s_cmp_input_y_share->get_clear_value_vec(&in_y_share , &in_y_bitlen , &in_y_nvals);
+	s_cmp_output_share->get_clear_value_vec(&out_share, &out_bitlen_cmp, &out_cmp_nvals);	
+
+	std::cout << "\n\nCMP input x share: " << std::endl;
+	for (uint32_t i = 0; i < nvals; i++) {
+		std::cout << "\n xvals_share[" << i << "]" << " = " <<in_x_share[i] << std::endl;
+	}
+
+	std::cout << "\n\nCMP input y share: " << std::endl;
+	for (uint32_t i = 0; i < nvals; i++) {
+		std::cout << "\n yvals_share[" << i << "]" << " = " <<in_y_share[i] << std::endl;
+	}
+
+	std::cout << "\n\nCMP result share: " << std::endl;
+	for (uint32_t i = 0; i < nvals; i++) {
+		std::cout << "\n Result_share[" << i << "]" << " = " <<out_share[i] << std::endl;
+	}
+
+	std::cout << "\n\nCMP results: " << std::endl;
+	for (uint32_t i = 0; i < nvals; i++) {
+		std::cout << "\n RESULT[" << i << "]" << " = " << out_vals_cmp[i] << std::endl;
+		// std::cout << "\n RESULT[" << i << "]" << " = " << out_vals_add[i] << std::endl;
+	}
+
+	// free(in_x_share);
+	// free(in_y_share);
+	// free(out_share);
+#endif
 
 	op_time = party->GetTiming(P_ONLINE) + party->GetTiming(P_SETUP);
 	std::cout << "\n FP CMP, \t total time: " << op_time  << "ms" << std::endl;
@@ -185,7 +361,13 @@ void test_verilog_add64_SIMD(e_role role, const std::string& address, uint16_t p
 	//share* asqrtin = circ->PutINGate(afloatptr, 32, SERVER);
 
 	share* div = circ->PutFPGate(ain, bin, DIV, bitlen, nvals);
-	share* div_out = circ->PutOUTGate(cmp, ALL);
+	share* div_out = circ->PutOUTGate(div, ALL);
+
+#if ELEMENTARY_DEBUG 
+	share *s_div_input_x_share = circ->PutSharedOUTGate(ain);
+	share *s_div_input_y_share = circ->PutSharedOUTGate(bin);
+	share *s_div_output_share = circ->PutSharedOUTGate(div);
+#endif
 
 	party->ExecCircuit();
 
@@ -193,6 +375,40 @@ void test_verilog_add64_SIMD(e_role role, const std::string& address, uint16_t p
 	uint64_t *out_vals_div;
 
 	div_out->get_clear_value_vec(&out_vals_div, &out_bitlen_div, &out_div_nvals);
+
+#if ELEMENTARY_DEBUG
+	// uint64_t *in_x_share, *in_y_share, *out_share; 
+	// uint32_t in_x_bitlen, in_y_bitlen, in_x_nvals, in_y_nvals; 
+	s_div_input_x_share->get_clear_value_vec(&in_x_share , &in_x_bitlen , &in_x_nvals);	
+	s_div_input_y_share->get_clear_value_vec(&in_y_share , &in_y_bitlen , &in_y_nvals);
+	s_div_output_share->get_clear_value_vec(&out_share, &out_bitlen_div, &out_div_nvals);	
+
+	std::cout << "\n\nDIV input x share: " << std::endl;
+	for (uint32_t i = 0; i < nvals; i++) {
+		std::cout << "\n xvals_share[" << i << "]" << " = " <<in_x_share[i] << std::endl;
+	}
+
+	std::cout << "\n\nDIV input y share: " << std::endl;
+	for (uint32_t i = 0; i < nvals; i++) {
+		std::cout << "\n yvals_share[" << i << "]" << " = " <<in_y_share[i] << std::endl;
+	}
+
+	std::cout << "\n\nDIV result share: " << std::endl;
+	for (uint32_t i = 0; i < nvals; i++) {
+		std::cout << "\n Result_share[" << i << "]" << " = " <<out_share[i] << std::endl;
+	}
+
+	std::cout << "\n\nDIV results: " << std::endl;
+	for (uint32_t i = 0; i < nvals; i++) {
+		std::cout << "\n RESULT[" << i << "]" << " = " << *(double*) &(out_vals_div[i]) << std::endl;
+		// std::cout << "\n RESULT[" << i << "]" << " = " << out_vals_add[i] << std::endl;
+	}
+
+	free(in_x_share);
+	free(in_y_share);
+	free(out_share);
+#endif
+
 
 	op_time = party->GetTiming(P_ONLINE) + party->GetTiming(P_SETUP);
 	std::cout << "\n FP DIV, \t total time: " << op_time  << "ms" << std::endl;

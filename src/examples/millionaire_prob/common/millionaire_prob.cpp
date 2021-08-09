@@ -61,7 +61,7 @@ int32_t test_millionaire_prob_circuit(e_role role, const std::string& address, u
 	*/
 
 	uint32_t alice_money, bob_money, output;
-	srand(time(NULL));
+	srand(0);
 	alice_money = rand();
 	bob_money = rand();
 

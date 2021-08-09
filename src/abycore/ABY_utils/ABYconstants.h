@@ -34,9 +34,9 @@
 #define PRINT_COMMUNICATION_STATS 0 //prints communication statistics
 #define BENCHONLINEPHASE 0 //show very detailed runtime statistic on each sharing for online phase, typically for troubleshooting
 
-#define BENCH_HARDWARE 0 // measure RTT, connection bandwidth and AES
+#define BENCH_HARDWARE 0// measure RTT, connection bandwidth and AES
 
-#define BATCH
+//#define BATCH
 
 //#define ABY_OT
 //#define VERIFY_OT
@@ -56,6 +56,7 @@
 #define BATCH
 
 #define FIXED_KEY_AES_HASHING //for OT routines
+
 //#define USE_KK_OT
 //#define USE_PIPELINED_AES_NI
 //#define USE_KK_OT_FOR_MT
