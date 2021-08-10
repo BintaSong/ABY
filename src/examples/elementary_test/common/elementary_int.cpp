@@ -225,9 +225,9 @@ std::cout << "\n -------------------test MUL-------------------" << std::endl;
 #if ELEMENTARY_DEBUG
 	// uint32_t *in_x_share, *in_y_share, *out_share; 
 	// uint32_t in_x_bitlen, in_y_bitlen, in_x_nvals, in_y_nvals; 
-	s_add_input_x_share->get_clear_value_vec(&in_x_share , &in_x_bitlen , &in_x_nvals);	
-	s_add_input_y_share->get_clear_value_vec(&in_y_share , &in_y_bitlen , &in_y_nvals);
-	s_add_output_share->get_clear_value_vec(&out_share, &out_bitlen, &out_nvals);	
+	s_mul_input_x_share->get_clear_value_vec(&in_x_share , &in_x_bitlen , &in_x_nvals);	
+	s_mul_input_y_share->get_clear_value_vec(&in_y_share , &in_y_bitlen , &in_y_nvals);
+	s_mul_output_share->get_clear_value_vec(&out_share, &out_bitlen, &out_nvals);	
 
 	std::cout << "\n\nMUL input x share: " << std::endl;
 	for (uint32_t i = 0; i < numbers; i++) {

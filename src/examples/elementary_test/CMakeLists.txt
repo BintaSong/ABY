@@ -4,3 +4,6 @@ target_link_libraries(elementary_int ABY::aby ENCRYPTO_utils::encrypto_utils)
 
 add_executable(elementary_float common/elementary_float.cpp)
 target_link_libraries(elementary_float ABY::aby ENCRYPTO_utils::encrypto_utils)
+
+add_executable(elementary_boolean common/elementary_boolean.cpp)
+target_link_libraries(elementary_boolean ABY::aby ENCRYPTO_utils::encrypto_utils)
