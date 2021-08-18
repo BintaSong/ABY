@@ -517,7 +517,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
 
     // if (i == 1) break ;
 
-    // #ifdef DTREE_DEBUG
+    #ifdef DTREE_DEBUG
         out = circ->PutSharedINGate(node[0], bitlen);
         out = circ->PutOUTGate(out, ALL);
         party->ExecCircuit();
@@ -525,9 +525,9 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         uint64_t node0 = out->get_clear_value<uint64_t>();
         cout << "node0 in " << (role == SERVER?"server: ":"client: ") << node0 << endl; 
         party->Reset();
-    // #endif
+    #endif
         
-    // #ifdef DTREE_DEBUG
+    #ifdef DTREE_DEBUG
         out = circ->PutSharedINGate(node[1], bitlen);
         out = circ->PutOUTGate(out, ALL);
         party->ExecCircuit();
@@ -535,9 +535,9 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         uint64_t node1 = out->get_clear_value<uint64_t>();
         cout << "node1 in " << (role == SERVER?"server: ":"client: ") << node1 << endl;
         party->Reset(); 
-    // #endif 
+    #endif 
         
-    // #ifdef DTREE_DEBUG
+    #ifdef DTREE_DEBUG
         out = circ->PutSharedINGate(node[2], bitlen);
         out = circ->PutOUTGate(out, ALL);
         party->ExecCircuit();
@@ -545,9 +545,9 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         uint64_t node2 = out->get_clear_value<uint64_t>();
         cout << "node2 in " << (role == SERVER?"server: ":"client: ") << node2 << endl; 
         party->Reset();
-    // #endif 
+    #endif 
 
-    // #ifdef DTREE_DEBUG
+    #ifdef DTREE_DEBUG
         out = circ->PutSharedINGate(node[3], bitlen);
         out = circ->PutOUTGate(out, ALL);
         party->ExecCircuit();
@@ -555,9 +555,9 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         uint64_t node3 = out->get_clear_value<uint64_t>();
         cout << "node3 in " << (role == SERVER?"server: ":"client: ") << node3 << endl;
         party->Reset();
-    // #endif 
+    #endif 
 
-    // #ifdef DTREE_DEBUG
+    #ifdef DTREE_DEBUG
         out = circ->PutSharedINGate(node[4], bitlen);
         out = circ->PutOUTGate(out, ALL);
         party->ExecCircuit();
@@ -565,7 +565,7 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
         uint64_t node4 = out->get_clear_value<uint64_t>();
         cout << "node4 in " << (role == SERVER?"server: ":"client: ") << node4 << endl;
         party->Reset();
-    // #endif 
+    #endif 
     } //end for
 
 #ifdef DTREE_DEBUG

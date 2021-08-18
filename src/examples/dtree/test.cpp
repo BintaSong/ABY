@@ -5,6 +5,7 @@
 #include "../../abycore/aby/abyparty.h"
 #include "common/dtread.h"
 #include "common/ftread.h"
+#include "common/fss_or_ot.h"
 #include "common/tree_feature.h"
 
 extern gmp_randclass gmp_prn;
@@ -50,16 +51,17 @@ int32_t read_test_options(int32_t* argcp, char*** argvp, e_role* role, uint32_t*
 }
 
 int main(int argc, char** argv) {
-	const char *filename[7] = {
+	const char *filename[8] = {
 		"wine",
 		"linnerud",
 		"breast",
 		"digits",
+		"spambase",
 		"diabetes",
 		"boston",
 		"mnist"
 	};
-	uint64_t ftDim[7] = {7, 3, 12, 47, 10, 13, 784};
+	uint64_t ftDim[8] = {7, 3, 12, 47, 57, 10, 13, 784};
 
 
 	e_role role;
@@ -90,40 +92,41 @@ int main(int argc, char** argv) {
 	uint64_t r1 = r0 ^ ind;
 
 	//modify here if testing other trees
-	int i = 1; 
+	int i = 0; 
 	cout << "Testing..." << filename[i] << endl;
 
 	//hiding the real depth of tree
 	uint32_t depthHide = 0;
 	
-	//-----------evaluation--------------
+	
+	//-----------fss_or_ot--------------
+	uint64_t featureDim = 57;
+	uint32_t testdepth = 17;
+
+	/*(n,d)
+	{wine, 7,5}
+	{linnerud:3,6}
+	{breast:12,7}
+	{digits: 47,15}
+	{spambase:57,17}
+	{diabetes: 10, 28}
+	{boston:13, 30}
+	{mnist:784, 20}
+	add dummies:
+	{500,100}
+	{1000, 50}
+	{10000,50}
+	{100000,50}
+	*/
+	
 	if(role ==  SERVER){
 		//strating tree evaluation
 		get_tree_and_feature(role, (char*) address.c_str(), port, seclvl, bitlen, nthreads, mt_alg, sharing, dectree_rootdir + filename[i], ftDim[i], r0, depthHide, nvals, verbose, use_vec_ands, expand_in_sfe, client_only);
+		// fssorot_feature(role, (char*) address.c_str(), port, seclvl, bitlen, nthreads, mt_alg, sharing, dectree_rootdir + filename[i], featureDim, r0, testdepth, nvals, verbose, use_vec_ands, expand_in_sfe, client_only);
 	}else if(role == CLIENT){
 		get_tree_and_feature(role, (char*) address.c_str(), port, seclvl, bitlen, nthreads, mt_alg, sharing, dectree_rootdir + filename[i], ftDim[i], r1, depthHide, nvals, verbose, use_vec_ands, expand_in_sfe, client_only);// last five params are for AES
+		// fssorot_feature(role, (char*) address.c_str(), port, seclvl, bitlen, nthreads, mt_alg, sharing, dectree_rootdir + filename[i], featureDim, r0, testdepth, nvals, verbose, use_vec_ands, expand_in_sfe, client_only);
 	}
-
-
-	// LowMC cipher(1);
-	// //cipher.print_matrices();
-    // block m = 0x321, c;
-    
-    // std::cout << "Plaintext:" << std::endl;
-    // std::cout << m << std::endl;
-    // c = cipher.encrypt( m );
-    // std::cout << "\nCiphertext:" << c.size() << std::endl;
-    // std::cout << c << std::endl;
-
-	// c = cipher.encrypt( m );
-    // std::cout << "\nCiphertext:" << c.size() << std::endl;
-    // std::cout << c << std::endl;
-
-	// //LowMC newcipher(1);
-	// //cipher.instantiate_LowMC();
-    // m = cipher.decrypt( c );
-    // std::cout << "\nEncryption followed by decryption of plaintext:" << std::endl;
-    // std::cout <<  m << std::endl;
 	
 	
 	return 0;

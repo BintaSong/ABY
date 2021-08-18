@@ -77,9 +77,15 @@ void tokenize(const string& str, vector<string>& tokens) {
 }
 
 void read(string string_file){
+    double setup_time = 0;
     double online_time = 0;
-    int sent_data = 0;
-    int rcv_data = 0;
+    double total_time=0;
+    int setup_sent_data = 0;
+    int setup_rcv_data = 0;
+    int online_sent_data = 0;
+    int online_rcv_data = 0;
+    int total_sent_data = 0;
+    int total_rcv_data = 0;
     const char* filename = string_file.c_str();
     ifstream file;
     file.open(filename);
@@ -95,20 +101,42 @@ void read(string string_file){
     while (getline(file, line)){
         tokenize(line, tokens);
 
-        if(tokens[0] == "Online" && tokens[1] == "="){
+        if(tokens[0] == "Setup" && tokens[1] == "="){
+            //cout << stod(tokens[2].c_str()) << endl;
+            setup_time += stod(tokens[2].c_str());
+        }else if(tokens[0] == "Online" && tokens[1] == "="){
             //cout << stod(tokens[2].c_str()) << endl;
             online_time += stod(tokens[2].c_str());
+        }else if(tokens[0] == "Total" && tokens[1] == "="){
+            //cout << stod(tokens[2].c_str()) << endl;
+            total_time += stod(tokens[2].c_str());
+        }else if(tokens[0] == "Setup" && tokens[1] == "Sent"){
+            setup_sent_data += atoi(tokens[4].c_str());
+            setup_rcv_data += atoi(tokens[7].c_str());
         }
         else if(tokens[0] == "Online" && tokens[1] == "Sent"){
-            sent_data += atoi(tokens[4].c_str());
-            rcv_data += atoi(tokens[7].c_str());
+            online_sent_data += atoi(tokens[4].c_str());
+            online_rcv_data += atoi(tokens[7].c_str());
+        }else if(tokens[0] == "Total" && tokens[1] == "Sent"){
+            total_sent_data += atoi(tokens[4].c_str());
+            total_rcv_data += atoi(tokens[7].c_str());
         }
     }
 
 // #ifdef READ_DEBUG
-    cout << "Total online running time is " << online_time << "ms" << endl;
-    cout << "Total sent data is " << sent_data/1024 << "KB" << endl;
-    cout << "Total received data is " << rcv_data/1024 << "KB" << endl;
+    // cout << "Setup running time is " << setup_time << "ms" << endl;
+    // cout << "Online running time is " << online_time << "ms" << endl;
+    // cout << "Total running time is " << total_time << "ms" << endl;
+    // cout << "Setup sent data is " << setup_sent_data/1024 << "KB" << endl;
+    // cout << "Setup received data is " << setup_rcv_data/1024 << "KB" << endl;
+    // cout << "Online sent data is " << online_sent_data/1024 << "KB" << endl;
+    // cout << "Online received data is " << online_rcv_data/1024 << "KB" << endl;
+    // cout << "Total sent data is " << total_sent_data/1024 << "KB" << endl;
+    // cout << "Total received data is " << total_rcv_data/1024 << "KB" << endl;
+    cout << setup_sent_data/1024 << "," << setup_rcv_data/1024 << "," << 
+            online_sent_data/1024 << "," << online_rcv_data/1024 << "," << 
+            total_sent_data/1024 << "," << total_rcv_data/1024 << "," << 
+            setup_time << "," << online_time << "," << total_time << endl;
 // #endif 
     file.close();
 }
