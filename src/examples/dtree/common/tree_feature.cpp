@@ -51,6 +51,9 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
     int totalNum = tree.num_dec_nodes + tree.num_of_leaves;
     uint64_t featureMax = pow(2, ceil(log(featureDim)/log(2)));
     uint64_t attri;
+    //for compute delta under arithmetic
+    uint32_t r_server = 2;
+    uint32_t r_client = 0;
     
 #ifdef DTREE_DEBUG
     cout << "tree.num_attributes in use " << tree.num_attributes << ", tree.featureDim in real " << featureDim << '\n';
@@ -178,8 +181,12 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
     #endif
 
     #if DTREE_FEAREAD_BY_OT
-        // reveal difference for OT,although r is known to server, we suppose here it is unknown.
-        s_a = circ->PutSharedINGate(r, bitlen);//2
+        // reveal difference for OT, r is known to server, we suppose here it is 2.
+        if(role == SERVER){
+            s_a = circ->PutINGate(r_server, bitlen, SERVER);//2
+        }else if(role == CLIENT){
+            s_a = circ->PutINGate(r_client, bitlen, CLIENT);//0
+        }
         s_b = circ->PutSharedINGate(node[3], bitlen);//6
         s_a = ac->PutB2AGate(s_a);
         s_b = ac->PutB2AGate(s_b);

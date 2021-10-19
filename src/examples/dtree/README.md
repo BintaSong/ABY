@@ -1,9 +1,5 @@
 # Privacy-Preserving-Decision-Tree-2021 by Xiangfu, Jianli
 
-
-## Baed on ABY
-git clone --recurse-submodules github_address_of_ABY
-
 ## Network Setup
 
 IP address is hard coded into network.h file. Default is localhost. Please change the ip address before compilation.
