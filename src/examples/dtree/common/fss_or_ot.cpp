@@ -3,6 +3,12 @@ string testfssResultFile1 = "../../src/examples/dtree/fss/ZeroOrOne0.txt";
 string testfssResultFile2 = "../../src/examples/dtree/fss/ZeroOrOne1.txt";
 string testOTKFile = "../../src/examples/dtree/K.txt";
 
+//定义一些时间参数
+auto start = std::chrono::steady_clock::now(), stop = std::chrono::steady_clock::now();
+#define CLOCK_START {start = std::chrono::steady_clock::now();}
+#define CLOCK_STOP {stop = std::chrono::steady_clock::now();}
+#define ELAPSED std::chrono::duration<double, std::nano>(stop - start).count()//一段时间
+
 //key of client
 BYTE testkeyc4[] = { 0x21, 0xE6, 0xAE, 0x3B,
         0xE7, 0x29, 0x41, 0x0B,
@@ -31,6 +37,7 @@ void fssorot_feature(e_role role, char* address, uint16_t port, seclvl seclvl,
                         bool expand_in_sfe, bool client_only){
     uint64_t featureMax = pow(2, ceil(log(featureDim)/log(2)));
     uint64_t attri;
+    double time_total = 0;
 
     /*
     //generating random attribute values of feature vector
@@ -183,108 +190,8 @@ void fssorot_feature(e_role role, char* address, uint16_t port, seclvl seclvl,
         cout << (role == SERVER?"server feature out_delta: ":"client feature out_delta: ") << (int) out_delta << endl; // here output the shared value.
     #endif
         party->Reset();
-    #else
-        // compute out_delta = b-a
-        // r is known to server, we suppose here it is 2.
-        if(role == SERVER){
-            s_a = circ->PutINGate(r_server, bitlen, SERVER);//2
-        }else if(role == CLIENT){
-            s_a = circ->PutINGate(r_client, bitlen, CLIENT);//0
-        }
-        // s_a = circ->PutSharedINGate(r, bitlen);//2
-        s_b = circ->PutSharedINGate(node, bitlen);//6
-        //s_a = ac->PutB2AGate(s_a);
-        s_b = ac->PutB2AGate(s_b);
-        s_c = ac->PutSUBGate(s_b, s_a);//b-a
-        out = ac->PutOUTGate(s_c, ALL);
-        // Execute again and get the reconstructed result
-        party->ExecCircuit();
-        //avoid negtive number by adding featureDim, because the offset should be positive
-        if(out->get_clear_value<int64_t>() < 0){
-            out_delta = out->get_clear_value<int64_t>() + featureDim;
-        }else{
-            out_delta = out->get_clear_value<uint64_t>();
-        }
-    #ifdef DTREE_DEBUG
-        cout << "out_delta of tree" << (role == SERVER?"server: ":"client: ") << out_delta << std::endl; // here output the shared value.
-    #endif
-        party->Reset();
-    #endif    
+    #else  
 
-    #if DELTA_XOR
-        //-----------Compute shared attribute value----------------
-        mpz_class sharedAttri = 0;
-        for (int i = 0; i < featureMax; i++) {
-            sharedAttri = (*(encryptedFeature.plain.data() +(i^out_delta)) * zeroOrOneFt[i]) ^ sharedAttri;
-        }
-
-    #if DTREE_DEBUG
-        //----------reveal next index of attri for AES(should be removed in the future)-----------
-        std::cout << ("before, node: ") << node << endl; // here output the value.
-        out = circ->PutSharedINGate(node, bitlen);
-        out = circ->PutOUTGate(out, ALL);
-        party->ExecCircuit();
-        //output will be the shares of the index of next node
-        uint64_t nextAttriInd = out->get_clear_value<uint64_t>();
-        party->Reset();
-        std::cout << ("after, node: ") << node << endl; 
-        std::cout << (role == SERVER?"server feature id: ":"client feature id: ") << nextAttriInd << endl; // here output the value.
-    #endif
-    #if DTREE_ENCRYPTED_BY_LOWMC
-        // do two-party lowmc evaluation
-        BYTE index_share[blocksize/8], lowmc_share[blocksize/8];
-        memset(index_share, 0, blocksize/8);
-        memcpy(index_share, &node, sizeof(uint64_t)); // indeed, node[3]'s length is 8 bytes 
-        
-
-        lowmc_circuit_shared_input(role, 1, crypt, sharing, party, sharings, circ, &param, extend_client_key, index_share, lowmc_share, CLIENT);
-
-        mpz_xor_mask(lowmc_share, blocksize, sharedAttri); // now sharedAttri is decrypted and shared between parties
-        party->Reset();
-    #else
-        BYTE indShared[16];
-        aes_circuit_feature(role, nvals, sharing,  party, crypt, sharings, circ, node, indShared, testkeyc4, verbose, use_vec_ands, expand_in_sfe, client_only);
-        party->Reset();
-        aes_xor_class_plain(indShared, sharedAttri);// server and client do xor locally
-    #endif
-
-    #ifdef DTREE_DEBUG
-        cout << "shared atrribute value from " << (role == SERVER?"server: ":"client: ") << " is " << sharedAttri.get_str(2) << endl;
-    #endif
-
-
-    #ifdef DTREE_DEBUG//AES by server locally.
-        //----------reveal next index of attri for AES(should be removed in the
-        //future)-----------
-        out = circ->PutSharedINGate(node, bitlen);
-        out = circ->PutOUTGate(out, ALL);
-        party->ExecCircuit();
-        //output will be the shares of the index of next node
-        uint64_t nextAttriInd = out->get_clear_value<uint64_t>();
-        party->Reset();
-        cout << (role == SERVER?"server: ":"client: ") << nextAttriInd << endl; // here output the value.
-
-        //-------------AES descryption----------------
-        //AES decryption, currently, we let the server decrypt the his part, and the client do nothing.
-        if(role == SERVER){
-            //6 should be shared
-            prf_aes_128_decrypt_by_key_feature(nextAttriInd, sharedAttri);
-        }
-        cout << "shared atrribute value from " << (role == SERVER?"server: ":"client: ") << " is " << sharedAttri << endl;
-    #endif
-
-    #if DTREE_ENCRYPTED_BY_LOWMC 
-    // std::cout << "lowmc1" << std::endl;    
-    sharedAttri = sharedAttri % pow(2, 64); 
-    // std::cout << " Decrypted attribute mod 2^64 share is: " << sharedAttri.get_str(2) << std::endl; 
-        attri = mpz2uint64(sharedAttri);   
-
-    #else
-        //we deconcatenate 128bits to 64bits
-        deconcatenate(sharedAttri, attri);
-    #endif
-
-    #else
     // compute out_delta = b-a
         // r is known to server, we suppose here it is 2.
         if(role == SERVER){
@@ -306,29 +213,29 @@ void fssorot_feature(e_role role, char* address, uint16_t port, seclvl seclvl,
         }else{
             out_delta = out->get_clear_value<uint64_t>();
         }
-    #ifdef DTREE_DEBUG
-        cout << "out_delta of tree" << (role == SERVER?"server: ":"client: ") << out_delta << std::endl; // here output the shared value.
-    #endif
         party->Reset();
+    #endif
 
-    //-----------Compute shared attribute value----------------
+    #if DELTA_XOR
+        //-----------Compute shared attribute value----------------
         mpz_class sharedAttri = 0;
+        CLOCK_START
+        for (int i = 0; i < featureMax; i++) {
+            sharedAttri = (*(encryptedFeature.plain.data() +(i^out_delta)) * zeroOrOneFt[i]) ^ sharedAttri;
+        }
+        CLOCK_STOP
+        time_total += ELAPSED;
+    #else
+       //-----------Compute shared attribute value----------------
+        mpz_class sharedAttri = 0;
+        CLOCK_START
         for (int i = 0; i < featureMax; i++) {
             sharedAttri = (*(encryptedFeature.plain.data()+ (i+out_delta)%featureDim) * zeroOrOneFt[i]) ^ sharedAttri;
         }
-
-    #if DTREE_DEBUG
-        //----------reveal next index of attri for AES(should be removed in the future)-----------
-        std::cout << ("before, node: ") << node << endl; // here output the value.
-        out = circ->PutSharedINGate(node, bitlen);
-        out = circ->PutOUTGate(out, ALL);
-        party->ExecCircuit();
-        //output will be the shares of the index of next node
-        uint64_t nextAttriInd = out->get_clear_value<uint64_t>();
-        party->Reset();
-        std::cout << ("after, node: ") << node << endl; 
-        std::cout << (role == SERVER?"server feature id: ":"client feature id: ") << nextAttriInd << endl; // here output the value.
+        CLOCK_STOP
+        time_total += ELAPSED;
     #endif
+
     #if DTREE_ENCRYPTED_BY_LOWMC
         // do two-party lowmc evaluation
         BYTE index_share[blocksize/8], lowmc_share[blocksize/8];
@@ -347,31 +254,6 @@ void fssorot_feature(e_role role, char* address, uint16_t port, seclvl seclvl,
         aes_xor_class_plain(indShared, sharedAttri);// server and client do xor locally
     #endif
 
-    #ifdef DTREE_DEBUG
-        cout << "shared atrribute value from " << (role == SERVER?"server: ":"client: ") << " is " << sharedAttri.get_str(2) << endl;
-    #endif
-
-
-    #ifdef DTREE_DEBUG//AES by server locally.
-        //----------reveal next index of attri for AES(should be removed in the
-        //future)-----------
-        out = circ->PutSharedINGate(node, bitlen);
-        out = circ->PutOUTGate(out, ALL);
-        party->ExecCircuit();
-        //output will be the shares of the index of next node
-        uint64_t nextAttriInd = out->get_clear_value<uint64_t>();
-        party->Reset();
-        cout << (role == SERVER?"server: ":"client: ") << nextAttriInd << endl; // here output the value.
-
-        //-------------AES descryption----------------
-        //AES decryption, currently, we let the server decrypt the his part, and the client do nothing.
-        if(role == SERVER){
-            //6 should be shared
-            prf_aes_128_decrypt_by_key_feature(nextAttriInd, sharedAttri);
-        }
-        cout << "shared atrribute value from " << (role == SERVER?"server: ":"client: ") << " is " << sharedAttri << endl;
-    #endif
-
     #if DTREE_ENCRYPTED_BY_LOWMC 
     // std::cout << "lowmc1" << std::endl;    
     sharedAttri = sharedAttri % pow(2, 64); 
@@ -385,9 +267,8 @@ void fssorot_feature(e_role role, char* address, uint16_t port, seclvl seclvl,
 
     #endif
 
-
-    #endif 
     } //end for
 
 	delete party;
+    cout << "Local run time is " << time_total/1000000 << endl;
 }

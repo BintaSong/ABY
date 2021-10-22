@@ -100,8 +100,8 @@ int main(int argc, char** argv) {
 	
 	
 	//-----------fss_or_ot--------------
-	uint64_t featureDim = 7;
-	uint32_t testdepth = 5;
+	uint64_t featureDim = 10000;
+	uint32_t testdepth = 50;
 
 	/*(n,d)
 	{wine, 7,5}
