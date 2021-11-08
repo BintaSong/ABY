@@ -1,4 +1,5 @@
 #include "tree_feature.h"
+#include <gmpxx.h>
 string fssResultFile1 = "../../src/examples/dtree/fss/ZeroOrOne0.txt";
 string fssResultFile2 = "../../src/examples/dtree/fss/ZeroOrOne1.txt";
 string OTKFile = "../../src/examples/dtree/K.txt";
@@ -37,8 +38,7 @@ BYTE lowmc_client_key[] = {0x04, 0x03, 0x0, 0x0,
         0x0, 0x0, 0x0, 0x0, 
         0x0, 0x0, 0x0, 0x0
     };
-
-
+//PRF encrypted tree
 void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl seclvl, 
                         uint32_t bitlen, uint32_t nthreads, e_mt_gen_alg mt_alg, 
                         e_sharing sharing, string filename, uint64_t featureDim, 
@@ -47,7 +47,8 @@ void get_tree_and_feature(e_role role, char* address, uint16_t port, seclvl secl
                         bool expand_in_sfe, bool client_only){
 	srand((unsigned int)time(NULL)); // real random
     DecTree tree;
-	tree.read_from_file(filename);
+	// tree.read_from_file(filename);
+    tree.read_from_file_pack(filename);
     int totalNum = tree.num_dec_nodes + tree.num_of_leaves;
     uint64_t featureMax = pow(2, ceil(log(featureDim)/log(2)));
     uint64_t attri;
@@ -591,4 +592,213 @@ std::cout << party->GetTiming(P_SETUP) << "\t" << party->GetTiming(P_ONLINE) << 
     party->Reset();
 
 	delete party;
+}
+
+//pad three dummy node
+void eval_dt_paillier(e_role role, char* address, uint16_t port, seclvl seclvl, 
+                    uint32_t nthreads, e_mt_gen_alg mt_alg, e_sharing sharing, 
+                    std::string filename, uint64_t featureDim){
+
+    //=============== Initialization ================
+
+	uint32_t bitlen = 8, maxbitlen=64, keybitlen = seclvl.symbits, keysize = keybitlen/8;
+	uint32_t nodeSize = keysize + sizeof(uint16_t) + sizeof(uint8_t);
+
+	struct timespec start, end;
+	srand((unsigned int)time(NULL)); // real random
+
+    //----- Communication channel establishment ----------
+	NetConnection* netConnection = new NetConnection(address, port+1);
+	if (!netConnection->EstConnection(role)) {
+		std::exit(EXIT_FAILURE);
+	}
+    channel* channel = netConnection->commChannel;
+
+    //init paillier
+    cryptoParty* cryptoPraty;
+	cryptoPraty = new PaillierParty(2048, 1); // ifcbits = 3072 bits for LT security
+	cryptoPraty->keyExchange(channel);
+
+    //read tree from file(node pointer encoded)
+    DecTree tree;
+    tree.read_from_file_pack(filename);
+
+    mpz_t *m_pEncTreeVec;
+	vector<uint64_t> bignode;
+
+    //encode tree
+    int count = 0, j, k, m;
+    for(int i = 0; i < (tree.num_dec_nodes + tree.num_of_leaves); i++){
+        if(tree.level[i]%2 == 0){
+            m = count*15;
+            if(tree.label[i].get_ui() != 0){
+                //existing chilren, current node || left child|| right child
+                bignode.push_back(tree.thres[i].get_ui());
+                bignode.push_back(tree.left[i].get_ui());
+                bignode.push_back(tree.right[i].get_ui());
+                bignode.push_back(tree.map[i].get_ui());
+                bignode.push_back(tree.label[i].get_ui());
+
+                j=tree.left[i].get_ui();
+                bignode.push_back(tree.thres[j].get_ui());
+                bignode.push_back(tree.left[j].get_ui());
+                bignode.push_back(tree.right[j].get_ui());
+                bignode.push_back(tree.map[j].get_ui());
+                bignode.push_back(tree.label[j].get_ui());
+
+                k=tree.right[i].get_ui();
+                bignode.push_back(tree.thres[k].get_ui());
+                bignode.push_back(tree.left[k].get_ui());
+                bignode.push_back(tree.right[k].get_ui());
+                bignode.push_back(tree.map[k].get_ui());
+                bignode.push_back(tree.label[k].get_ui());
+            }
+            else{
+                //no existing chilren, current node || current node|| current node
+                for(int n = 0; n < 3; n++){
+                    bignode.push_back(tree.thres[i].get_ui());
+                    bignode.push_back(tree.left[i].get_ui());
+                    bignode.push_back(tree.right[i].get_ui());
+                    bignode.push_back(tree.map[i].get_ui());
+                    bignode.push_back(tree.label[i].get_ui());
+                }
+            }
+            count++;
+        }
+    }
+    //server encrypts and sends to the client 
+    cryptoPraty->encSndRcvVec_Tree(role, bignode, m_pEncTreeVec, channel);
+}
+
+//for testing tree encoding
+void paillier_tree_encoding_test(e_role role, char* address, uint16_t port, seclvl seclvl, 
+                        uint32_t bitlen, uint32_t nthreads, e_mt_gen_alg mt_alg, 
+                        e_sharing sharing, string filename, uint64_t featureDim, 
+                        uint64_t r, uint32_t depthHide, uint32_t nvals, 
+                        [[maybe_unused]] bool verbose, bool use_vec_ands, 
+                        bool expand_in_sfe, bool client_only){
+	srand((unsigned int)time(NULL)); // real random
+    DecTree tree;
+	// tree.read_from_file(filename);
+    tree.read_from_file_pack(filename);
+    int totalNum = tree.num_dec_nodes + tree.num_of_leaves;
+    uint64_t featureMax = pow(2, ceil(log(featureDim)/log(2)));
+    uint64_t attri;
+    //for compute delta under arithmetic
+    uint32_t r_server = 2;
+    uint32_t r_client = 0;
+}
+
+//for testing components in paillier-based protocol
+void paillier_test(e_role role, char* address, uint16_t port, seclvl seclvl, 
+                        uint32_t bitlen, uint32_t nthreads, e_mt_gen_alg mt_alg, 
+                        e_sharing sharing, string filename, uint64_t featureDim, 
+                        uint64_t r, uint32_t depthHide, uint32_t nvals, 
+                        [[maybe_unused]] bool verbose, bool use_vec_ands, 
+                        bool expand_in_sfe, bool client_only){
+    // ---- ABY init --------
+	ABYParty* party = new ABYParty(role, address, port, seclvl, bitlen, nthreads, mt_alg);
+	vector<Sharing*>& sharings = party->GetSharings();
+    crypto* crypt = new crypto(seclvl.symbits, (uint8_t*) const_seed);
+	Circuit*circ = sharings[sharing]->GetCircuitBuildRoutine();
+    Circuit* ac = sharings[S_ARITH]->GetCircuitBuildRoutine();//for converting
+	BooleanCircuit* yaocirc = (BooleanCircuit*) sharings[S_YAO]->GetCircuitBuildRoutine();
+    share* s_a;
+    share* s_b;
+    share* s_cmp; 
+    share* s_c;
+	share* out;
+    uint64_t out_delta;
+
+    uint64_t a, b, c, d, s;
+    uint64_t next;
+
+    uint32_t length;
+    length = 4096;
+
+    if(role==SERVER){
+        a = 666864304155736222;
+        b = rand();
+        c = rand();
+        d = rand();
+        s=0;
+    }else{
+        a = 666864304123736125;
+        b = rand();
+        c = rand();
+        d = rand();
+        s=1;
+    }
+
+    #ifdef DTREE_DEBUG
+        cout << "\n**Running Comparison and Multiplexer subprotocol..." << endl;
+        s_a = circ->PutSharedINGate(a, bitlen);
+        s_b = circ->PutSharedINGate(b, bitlen);
+        s_cmp = circ->PutGTGate(s_a, s_b);
+
+        s_a = circ->PutSharedINGate(c, bitlen);
+        s_b = circ->PutSharedINGate(d, bitlen);
+        //if s_cmp  = 1, s_a will be returned, otherwise, s_b is returned.
+        out = circ->PutMUXGate(s_a, s_b, s_cmp);
+        out = circ->PutSharedOUTGate(out);
+        party->ExecCircuit();
+        //output will be the shares of the index of next node
+        next = out->get_clear_value<uint64_t>();
+        party->Reset();
+    #endif
+
+    #ifdef DTREE_DEBUG
+        cout << "\n**Sololy running Multiplexer subprotocol..." << endl;
+        s_cmp = circ->PutSharedINGate(s, bitlen);
+
+        s_a = circ->PutSharedINGate(c, bitlen);
+        s_b = circ->PutSharedINGate(d, bitlen);
+        //if s_cmp  = 1, s_a will be returned, otherwise, s_b is returned.
+        out = circ->PutMUXGate(s_a, s_b, s_cmp);
+        out = circ->PutSharedOUTGate(out);
+        party->ExecCircuit();
+        //output will be the shares of the index of next node
+        next = out->get_clear_value<uint64_t>();
+        party->Reset();
+    #endif
+
+    cout << "*************B2A**********************" << endl;
+    //-----------B2A
+    // #ifdef DTREE_DEBUG
+        s_a = circ->PutSharedINGate(a, length);
+        s_a = ac->PutB2AGate(s_a);
+        out = ac->PutSharedOUTGate(s_a);
+        // Execute again and get the reconstructed result
+        party->ExecCircuit();
+        party->Reset();
+    // #endif
+    //-----------B2A
+    // #ifdef DTREE_DEBUG
+        s_a = circ->PutSharedINGate(a, length);
+        s_a = ac->PutB2AGate(s_a);
+        out = ac->PutSharedOUTGate(s_a);
+        // Execute again and get the reconstructed result
+        party->ExecCircuit();
+        party->Reset();
+    // #endif
+    cout << "*************A2B**********************" << endl;
+    //-----------A2B
+    // #ifdef DTREE_DEBUG
+        s_a = ac->PutSharedINGate(a, length);
+        s_a = circ->PutA2BGate(s_a, sharings[S_YAO]->GetCircuitBuildRoutine());
+        out = circ->PutSharedOUTGate(s_a);
+        // Execute again and get the reconstructed result
+        party->ExecCircuit();
+        party->Reset();
+    // #endif
+    //-----------A2B = (A2Y->Y2B)
+    // #ifdef DTREE_DEBUG
+        s_a = ac->PutSharedINGate(a, length);
+        s_a = yaocirc->PutA2YGate(s_a);
+        s_a = circ->PutY2BGate(s_a);
+        out = circ->PutSharedOUTGate(s_a);
+        // Execute again and get the reconstructed result
+        party->ExecCircuit();
+        party->Reset();
+    // #endif
 }

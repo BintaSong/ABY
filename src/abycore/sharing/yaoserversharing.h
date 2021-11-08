@@ -72,6 +72,7 @@ public:
 	}
 	;
 	//ENDS HERE..
+	CBitVector get_R(){ return m_vR;}
 
 private:
 	//Global constant key

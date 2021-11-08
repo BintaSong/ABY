@@ -71,12 +71,11 @@ class DecTree {
 
    //vectors for our structure
    vector<mpz_class> thres;
-   mpz_class left[10000];
-   mpz_class right[10000];
-   mpz_class left_tmp[10000];
-   mpz_class right_tmp[10000];
+   vector<mpz_class> left;//as an array
+   vector<mpz_class> right;//as an array
    vector<mpz_class> map;
    vector<mpz_class> label;
+   vector<mpz_class> level;//as an array
 
    //STATISTICS FOR DECISION TREES
    //number of attributes
@@ -96,7 +95,9 @@ class DecTree {
    void add_node(Node*);
    void add_decnode(Node*);
    void add_edge(Node*, Node*, int64_t node1, int64_t node2);
+   void add_edge_pack(Node*, Node*, int64_t node1, int64_t node2);
    void read_from_file(string);
+   void read_from_file_pack(string);//three nodes as a big node
    void evaluate(vector<uint64_t> inputs);
    void depthPad();
    void fullTree(uint32_t num_att, uint32_t depth);

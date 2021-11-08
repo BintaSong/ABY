@@ -79,14 +79,34 @@ void DecTree::add_edge(DecTree::Node* n1, DecTree::Node* n2, int64_t node1, int6
 	if(n1->left == NULL){
         n1->left = n2;
         left[node1] = node2;
-        left_tmp[node1] = node2;
-        
-
 	}
 	else if(n1->right == NULL){
         n1->right = n2;
         right[node1] = node2;
-        right_tmp[node1] = node2;
+	}
+}
+
+void DecTree::add_edge_pack(DecTree::Node* n1, DecTree::Node* n2, int64_t node1, int64_t node2){
+    // std::cout << "this is " << node1 << "->" << node2 << std::endl;
+    n2->parent = n1;
+    n2->level = n1->level + 1;
+    level[node2] = n2->level;
+    //set the children's point in advance
+    if(n2->level%2 == 1){//circle the parent
+        left[node2] = node1;
+        right[node2] = node1;
+    }else{//circle itself
+        left[node2] = node2;
+        right[node2] = node2;
+    }
+
+	if(n1->left == NULL){
+        n1->left = n2;
+        left[node1] = node2;
+	}
+	else if(n1->right == NULL){
+        n1->right = n2;
+        right[node1] = node2;
 	}
 }
 
@@ -96,7 +116,6 @@ void DecTree::add_edge(DecTree::Node* n1, DecTree::Node* n2, int64_t node1, int6
  * @param tokens the result vector of wire id
  */
 void tokenize(const std::string& str, std::vector<string>& tokens) {
-	tokens.clear();
 	std::size_t prev = 0, pos;
     //if there is any " " [] \\ in str, it will return 1 //"string::npos"means find failed
     while ((pos = str.find_first_of(" [] \\ ", prev)) != std::string::npos)
@@ -105,8 +124,9 @@ void tokenize(const std::string& str, std::vector<string>& tokens) {
             tokens.push_back(str.substr(prev, pos-prev));
         prev = pos+1;
     }
-    if (prev < str.length())
+    if (prev < str.length()){
         tokens.push_back(str.substr(prev, std::string::npos));
+    }
 }
 
 /**
@@ -156,6 +176,12 @@ void DecTree::read_from_file(string string_file){
     vector<string> tokens;
     vector<uint64_t>::iterator it;
     float thres;
+    //init left and right
+    for(int i = 0; i < 100000; i++){
+        left.push_back(0);
+        right.push_back(0);
+        // level.push_back(0);
+    }
     while (getline(file, line)){
         tokenize(line, tokens);
         // //print the tree
@@ -231,6 +257,160 @@ void DecTree::read_from_file(string string_file){
         }
         
     }
+
+#ifdef DTREE_DEBUG
+    //output data list of the tree
+    std::cout << "**********threshold**************" << std::endl;
+    for(int i = 0; i < (num_dec_nodes + num_of_leaves); i++){
+        std::cout << this->thres[i] << " ";
+    }
+    std::cout << "\n**********left**************" << std::endl;
+    for(int i = 0; i < (num_dec_nodes + num_of_leaves); i++){
+        std::cout << left[i] << " ";
+    }
+    std::cout << "\n**********right**************" << std::endl;
+    for(int i = 0; i < (num_dec_nodes + num_of_leaves); i++){
+        std::cout << right[i] << " ";
+    }
+    std::cout << "\n**********mapping**************" << std::endl;
+    for(int i = 0; i < (num_dec_nodes + num_of_leaves); i++){
+        std::cout << this->map[i] << " ";
+    }
+    std::cout << "\n**********label**************" << std::endl;
+    for(int i = 0; i < (num_dec_nodes + num_of_leaves); i++){
+        std::cout << this->label[i] << " ";
+    }
+    cout << endl;
+#endif 
+
+    for(uint32_t i = 0; i < this->node_vec.size(); ++i){
+        node = this->node_vec[i];
+        if(node->leaf){ //Right is also 0 in this case
+	    if(node->level > this->depth){
+                this->depth = node->level;
+            }
+        }
+    }
+#ifdef DTREE_DEBUG
+    cout << "Total number of attributes " << this->num_attributes << endl;
+    cout << "Depth of the tree " << this->depth << endl;
+    cout << "Total number of decision nodes " << this->num_dec_nodes << endl;
+    cout << "Total number of leaves " << this->num_of_leaves << endl;
+#endif 
+    for(uint32_t i = 0; i < this->node_vec.size(); ++i){
+        node = this->node_vec[i];
+        if(node->leaf){
+            this->dummy_non_full += this->depth - node->level;
+        }
+    }
+#ifdef DTREE_DEBUG
+    cout << "Total number of dummy nodes in non-full tree " << this->dummy_non_full << endl;
+#endif 
+    uint32_t total_number_of_edges = 0;
+    for(uint32_t i = 0; i < this->node_vec.size(); ++i){
+        node = this->node_vec[i];
+        if(node->leaf){
+            total_number_of_edges += node->level;
+        }
+    }
+#ifdef DTREE_DEBUG
+    cout << "Total number of edges " << total_number_of_edges << endl;
+#endif 
+    file.close();
+    //file2.close();
+}
+
+//root node will be in decnode_vec[0] and node_vec[0]
+void DecTree::read_from_file_pack(string string_file){
+    const char* filename = string_file.c_str();
+    ifstream file;
+    file.open(filename);
+#ifdef DTREE_DEBUG
+    cout << filename << endl;
+#endif 
+    if (!file)  //条件成立，则说明文件打开出错
+        cout << "open errors" << endl;
+    //ofstream file2;
+    //file2.open("dectree.txt", std::ios_base::app);
+
+    uint64_t node1;
+    uint64_t node2;
+
+    DecTree::Node* node;
+    uint64_t index;
+    string line;
+    vector<uint64_t>::iterator it;
+    float thres;
+    //init left and right
+    for(int i = 0; i < 100000; i++){
+        left.push_back(0);
+        right.push_back(0);
+        level.push_back(0);
+    }
+    while (getline(file, line)){
+        vector<string> tokens;
+        tokenize(line, tokens);
+        // //print the tree
+        // for(vector<string>::iterator it = tokens.begin(); it != tokens.end(); it++){
+        //     cout << *it << " ";
+        // }
+        // cout << endl;
+        if(tokens.size() > 1){
+            if(tokens[1] == "label=\"gini"){
+                node1 = atoi(tokens[0].c_str());
+                // cout << "node1 of label=\"gini is: " << node1 << endl;
+                this->add_node(new DecTree::Node());
+                this->node_vec[node1]->leaf = true;
+                this->num_of_leaves++;
+                this->node_vec[node1]->classification = atoi(tokens[6].c_str());
+                //
+                this->thres.push_back(0);
+                this->map.push_back(0);
+                for(int i = 9; i < tokens.size()-2; i++){
+                    if(atoi(tokens[i].c_str()) != 0){
+                        this->label.push_back(i-8);
+                    }
+                }
+            }
+            else if(tokens[1] == "label=\"X"){
+                node1 = atoi(tokens[0].c_str());
+                // cout << "node1 of label=\"X is: " << node1 << endl;
+                node = new DecTree::Node();
+                index = atoi(tokens[2].c_str());
+                //映射在这里
+                node->attribute_index = index;
+                //cout << index << endl;
+                thres = atof(tokens[4].c_str());
+                //门限值在这里
+                node->threshold = thres*1000;
+                //cout << node->threshold << endl; //Thresholds are converted so that we only compare integers
+                this->num_dec_nodes++;
+                this->add_node(node);
+                this->add_decnode(node);
+
+                it = find_if(this->attributes.begin(), this->attributes.end(), SearchFunction(index));
+                //未找到
+                if(it == this->attributes.end()){
+                    this->num_attributes++;
+                }
+                this->attributes.push_back(index);
+                this->thresholds.push_back(node->threshold);
+                //
+                this->thres.push_back(node->threshold);
+                this->map.push_back(index);
+                this->label.push_back(0);
+            }
+            else if(tokens[1] == "->"){
+                node1 = atoi(tokens[0].c_str());
+                node2 = atoi(tokens[2].c_str());
+                // cout << node1 << " ";
+                // cout << node2 << endl;
+                this->add_edge_pack(this->node_vec[node1], this->node_vec[node2], node1, node2);
+            }
+            vector <string>().swap(tokens);//delete tokens
+        }
+    }
+    
 
 #ifdef DTREE_DEBUG
     //output data list of the tree

@@ -469,6 +469,10 @@ public:
 	std::vector<uint32_t> PutGateFromFile(const std::string filename, std::vector<uint32_t> inputs, uint32_t nvals = 1);
 	std::vector<uint32_t> PutUniversalCircuitFromFile(const std::string filename, const std::string p1filename, std::vector<uint32_t> 	p2inputs, uint32_t nvals);
 
+	BYTE* GetEvaluatedKey(uint32_t gateid) { return m_vGates[gateid].gs.yval; };
+	BYTE* GetServerRandomKey(uint32_t gateid) {return m_vGates[gateid].gs.yinput.outKey; };
+	BYTE* GetPi(uint32_t gateid) {return m_vGates[gateid].gs.yinput.pi; };
+
 	/**
 	 * \brief Get the number of input bits for both parties that a given circuit file expects
 	 * \param the file name of the circuit

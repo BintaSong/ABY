@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
 	uint64_t r1 = r0 ^ ind;
 
 	//modify here if testing other trees
-	int i = 7; 
+	int i = 0; 
 	cout << "Testing..." << filename[i] << endl;
 
 	//hiding the real depth of tree
@@ -100,8 +100,8 @@ int main(int argc, char** argv) {
 	
 	
 	//-----------fss_or_ot--------------
-	uint64_t featureDim = 10000;
-	uint32_t testdepth = 50;
+	uint64_t featureDim = 7;
+	uint32_t testdepth = 5;
 
 	/*(n,d)
 	{wine, 7,5}
@@ -122,11 +122,18 @@ int main(int argc, char** argv) {
 	if(role ==  SERVER){
 		//strating tree evaluation
 		// get_tree_and_feature(role, (char*) address.c_str(), port, seclvl, bitlen, nthreads, mt_alg, sharing, dectree_rootdir + filename[i], ftDim[i], r0, depthHide, nvals, verbose, use_vec_ands, expand_in_sfe, client_only);
-		fssorot_feature(role, (char*) address.c_str(), port, seclvl, bitlen, nthreads, mt_alg, sharing, dectree_rootdir + filename[i], featureDim, r0, testdepth, nvals, verbose, use_vec_ands, expand_in_sfe, client_only);
+		// paillier_tree_encoding_test(role, (char*) address.c_str(), port, seclvl, bitlen, nthreads, mt_alg, sharing, dectree_rootdir + filename[i], ftDim[i], r0, depthHide, nvals, verbose, use_vec_ands, expand_in_sfe, client_only);
+		paillier_test(role, (char*) address.c_str(), port, seclvl, bitlen, nthreads, mt_alg, sharing, dectree_rootdir + filename[i], ftDim[i], r0, depthHide, nvals, verbose, use_vec_ands, expand_in_sfe, client_only);
+		// fssorot_feature(role, (char*) address.c_str(), port, seclvl, bitlen, nthreads, mt_alg, sharing, dectree_rootdir + filename[i], featureDim, r0, testdepth, nvals, verbose, use_vec_ands, expand_in_sfe, client_only);
 	}else if(role == CLIENT){
 		// get_tree_and_feature(role, (char*) address.c_str(), port, seclvl, bitlen, nthreads, mt_alg, sharing, dectree_rootdir + filename[i], ftDim[i], r1, depthHide, nvals, verbose, use_vec_ands, expand_in_sfe, client_only);// last five params are for AES
-		fssorot_feature(role, (char*) address.c_str(), port, seclvl, bitlen, nthreads, mt_alg, sharing, dectree_rootdir + filename[i], featureDim, r0, testdepth, nvals, verbose, use_vec_ands, expand_in_sfe, client_only);
+		// paillier_tree_encoding_test(role, (char*) address.c_str(), port, seclvl, bitlen, nthreads, mt_alg, sharing, dectree_rootdir + filename[i], ftDim[i], r0, depthHide, nvals, verbose, use_vec_ands, expand_in_sfe, client_only);
+		paillier_test(role, (char*) address.c_str(), port, seclvl, bitlen, nthreads, mt_alg, sharing, dectree_rootdir + filename[i], ftDim[i], r0, depthHide, nvals, verbose, use_vec_ands, expand_in_sfe, client_only);
+		// fssorot_feature(role, (char*) address.c_str(), port, seclvl, bitlen, nthreads, mt_alg, sharing, dectree_rootdir + filename[i], featureDim, r0, testdepth, nvals, verbose, use_vec_ands, expand_in_sfe, client_only);
 	}
+	// eval_dt_paillier(role, (char*) address.c_str(), port, seclvl, nthreads, mt_alg, sharing, dectree_rootdir + filename[i], featureDim);
+
+
 	
 	
 	return 0;
